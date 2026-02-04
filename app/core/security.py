@@ -107,12 +107,13 @@ def create_refresh_token(user_id: str) -> str:
     return encoded_jwt
 
 
-def decode_token(token: str) -> Tuple[Optional[str], Optional[str]]:
+def decode_token(token: str, expected_type: str = "access") -> Tuple[Optional[str], Optional[str]]:
     """
     解码并验证 JWT
     
     Args:
         token: JWT 字符串
+        expected_type: 期望的 token 类型 ("access" 或 "refresh")
         
     Returns:
         (user_id, error_message)
@@ -125,9 +126,14 @@ def decode_token(token: str) -> Tuple[Optional[str], Optional[str]]:
             algorithms=[settings.JWT_ALGORITHM]
         )
         user_id: str = payload.get("sub")
+        token_type: str = payload.get("type", "access")
         
         if user_id is None:
             return None, "Invalid token: missing user ID"
+        
+        # 验证 token 类型
+        if token_type != expected_type:
+            return None, f"Invalid token type: expected {expected_type}, got {token_type}"
             
         return user_id, None
         

@@ -138,7 +138,7 @@ async def refresh_token(
     """
     from app.core.security import decode_token
     
-    user_id, error = decode_token(refresh_data.refresh_token)
+    user_id, error = decode_token(refresh_data.refresh_token, expected_type="refresh")
     
     if error:
         raise HTTPException(

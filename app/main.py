@@ -10,13 +10,19 @@ AI PPT Generator - FastAPI 主应用入口
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from app.config import settings
 from app.database import close_db, init_db
 from app.routers import api_router
+
+# 创建限流器
+limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -68,6 +74,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# 注册限流器
+app.state.limiter = limiter
+
 # CORS 配置
 app.add_middleware(
     CORSMiddleware,
@@ -76,6 +85,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# 限流异常处理
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    """限流异常处理"""
+    return JSONResponse(
+        status_code=429,
+        content={
+            "code": "RATE_LIMIT_EXCEEDED",
+            "message": "请求过于频繁，请稍后再试",
+            "retry_after": 60
+        }
+    )
 
 
 # 全局异常处理

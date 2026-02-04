@@ -41,7 +41,7 @@ async def get_current_user(
         HTTPException: 401 如果 Token 无效或用户不存在
     """
     token = credentials.credentials
-    user_id, error = decode_token(token)
+    user_id, error = decode_token(token, expected_type="access")
     
     if error:
         raise HTTPException(
