@@ -15,6 +15,7 @@ from app.services.ppt_generation_service import (
     get_ppt_generation_service,
 )
 from app.services.ppt_service import PPTService, get_ppt_service
+from app.services.template_service import TemplateService, get_template_service
 from app.services.user_service import UserService, get_user_service
 
 __all__ = [
@@ -33,4 +34,6 @@ __all__ = [
     "get_export_service",
     "ExportTaskService",
     "get_export_task_service",
+    "TemplateService",
+    "get_template_service",
 ]

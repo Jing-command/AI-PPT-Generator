@@ -28,6 +28,12 @@ from app.schemas.presentation import (
     SlideStyle,
     SlideUpdate,
 )
+from app.schemas.template import (
+    TemplateCategoryResponse,
+    TemplateDetailResponse,
+    TemplateListResponse,
+    TemplateResponse,
+)
 from app.schemas.user import (
     ErrorResponse,
     LoginRequest,
@@ -70,4 +76,9 @@ __all__ = [
     "GenerateStatusResponse",
     "ExportRequest",
     "ExportResponse",
+    # Template
+    "TemplateResponse",
+    "TemplateDetailResponse",
+    "TemplateListResponse",
+    "TemplateCategoryResponse",
 ]

@@ -7,6 +7,7 @@ from app.models.api_key import UserAPIKey
 from app.models.export_task import ExportTask
 from app.models.operation_history import OperationHistory
 from app.models.presentation import GenerationTask, Presentation
+from app.models.template import Template
 from app.models.user import User
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "GenerationTask",
     "OperationHistory",
     "ExportTask",
+    "Template",
 ]

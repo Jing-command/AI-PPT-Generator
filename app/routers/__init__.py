@@ -5,7 +5,7 @@
 
 from fastapi import APIRouter
 
-from app.routers import api_keys, auth, export, ppt, ppt_generation, users
+from app.routers import api_keys, auth, export, ppt, ppt_generation, templates, users
 
 # 创建主路由
 api_router = APIRouter(prefix="/api/v1")
@@ -17,5 +17,6 @@ api_router.include_router(api_keys.router)
 api_router.include_router(ppt_generation.router)
 api_router.include_router(ppt.router)
 api_router.include_router(export.router)
+api_router.include_router(templates.router)
 
 __all__ = ["api_router"]
