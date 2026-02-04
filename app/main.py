@@ -1,0 +1,123 @@
+"""
+AI PPT Generator - FastAPI 主应用入口
+
+大厂级代码规范：
+- 清晰的模块划分
+- 完善的错误处理
+- 详细的 API 文档
+- 性能监控
+"""
+
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.config import settings
+from app.database import close_db, init_db
+from app.routers import api_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    应用生命周期管理
+    
+    启动时：
+        - 初始化数据库
+        - 加载配置
+    
+    关闭时：
+        - 关闭数据库连接
+        - 清理资源
+    """
+    # 启动
+    await init_db()
+    print(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} 启动成功")
+    
+    yield
+    
+    # 关闭
+    await close_db()
+    print("👋 应用已关闭")
+
+
+# 创建 FastAPI 应用
+app = FastAPI(
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    description="""
+    AI 驱动的 PPT 生成服务
+    
+    ## 特性
+    - 🤖 支持多种 AI 提供商（OpenAI, Claude, 国产模型）
+    - 📝 对话式 PPT 编辑
+    - 🎨 丰富的模板系统
+    - 📤 多格式导出（PPTX, PDF）
+    
+    ## 认证
+    所有需要认证的接口都需要在 Header 中传递：
+    ```
+    Authorization: Bearer {your_token}
+    ```
+    """,
+    docs_url="/docs",  # Swagger UI
+    redoc_url="/redoc",  # ReDoc 文档
+    openapi_url="/openapi.json",
+    lifespan=lifespan
+)
+
+# CORS 配置
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# 全局异常处理
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    """全局异常处理，返回统一的错误格式"""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "INTERNAL_ERROR",
+            "message": "服务器内部错误",
+            "details": {"error": str(exc)} if settings.DEBUG else None
+        }
+    )
+
+
+# 健康检查
+@app.get("/health", tags=["系统"], summary="健康检查")
+async def health_check():
+    """
+    健康检查端点
+    
+    用于监控系统和服务发现
+    """
+    return {
+        "status": "healthy",
+        "version": settings.APP_VERSION,
+        "service": settings.APP_NAME
+    }
+
+
+# 注册 API 路由
+app.include_router(api_router)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    uvicorn.run(
+        "app.main:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.DEBUG,
+        workers=1 if settings.DEBUG else 4
+    )

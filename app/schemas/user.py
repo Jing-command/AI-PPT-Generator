@@ -1,0 +1,89 @@
+"""
+Pydantic 数据验证模型
+用于请求/响应数据验证和序列化
+"""
+
+from datetime import datetime
+from typing import Optional
+from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, Field
+
+
+# ==================== 用户相关 ====================
+
+class UserBase(BaseModel):
+    """用户基础模型"""
+    email: EmailStr = Field(..., description="用户邮箱")
+    name: Optional[str] = Field(None, max_length=100, description="用户名")
+    
+    class Config:
+        from_attributes = True
+
+
+class UserCreate(UserBase):
+    """用户注册请求模型"""
+    password: str = Field(
+        ...,
+        min_length=8,
+        max_length=100,
+        description="密码，至少8位"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "email": "user@example.com",
+                "password": "securepassword123",
+                "name": "张三"
+            }
+        }
+
+
+class UserResponse(UserBase):
+    """用户响应模型（不包含密码）"""
+    id: UUID
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# ==================== 认证相关 ====================
+
+class Token(BaseModel):
+    """Token 响应模型"""
+    access_token: str = Field(..., description="访问令牌")
+    refresh_token: str = Field(..., description="刷新令牌")
+    token_type: str = Field(default="bearer", description="令牌类型")
+    expires_in: int = Field(..., description="过期时间（秒）")
+
+
+class LoginRequest(BaseModel):
+    """登录请求模型"""
+    email: EmailStr = Field(..., description="用户邮箱")
+    password: str = Field(..., description="密码")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "email": "user@example.com",
+                "password": "securepassword123"
+            }
+        }
+
+
+class RefreshTokenRequest(BaseModel):
+    """刷新 Token 请求"""
+    refresh_token: str = Field(..., description="刷新令牌")
+
+
+# ==================== 错误响应 ====================
+
+class ErrorResponse(BaseModel):
+    """标准错误响应"""
+    code: str = Field(..., description="错误代码")
+    message: str = Field(..., description="错误信息")
+    details: Optional[dict] = Field(None, description="详细错误信息")

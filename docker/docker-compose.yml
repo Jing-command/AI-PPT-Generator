@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # 主应用
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://pptuser:pptpass@db:5432/pptdb
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key}
+      - DEBUG=${DEBUG:-false}
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ../storage:/app/storage
+    restart: unless-stopped
+
+  # 数据库
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=pptuser
+      - POSTGRES_PASSWORD=pptpass
+      - POSTGRES_DB=pptdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # Celery Worker
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: celery -A app.tasks worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://pptuser:pptpass@db:5432/pptdb
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
