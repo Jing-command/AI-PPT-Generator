@@ -1,0 +1,174 @@
+"""
+PPT 相关的 Pydantic 模型
+"""
+
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
+
+# ==================== Slide 模型 ====================
+
+class SlideContent(BaseModel):
+    """幻灯片内容"""
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    text: Optional[str] = None
+    bullets: Optional[List[str]] = None
+    image_url: Optional[str] = None
+    chart_data: Optional[Dict[str, Any]] = None
+
+
+class SlideLayout(BaseModel):
+    """幻灯片布局"""
+    type: str = Field(..., description="布局类型: title, content, split, image, chart")
+    background: Optional[str] = None
+    theme: Optional[str] = None
+
+
+class SlideStyle(BaseModel):
+    """幻灯片样式"""
+    font_family: Optional[str] = None
+    font_size: Optional[int] = None
+    color: Optional[str] = None
+    alignment: Optional[str] = None
+
+
+class Slide(BaseModel):
+    """幻灯片"""
+    id: Optional[str] = None
+    type: str = Field(default="content", description="幻灯片类型")
+    content: SlideContent
+    layout: Optional[SlideLayout] = None
+    style: Optional[SlideStyle] = None
+    notes: Optional[str] = None
+
+
+# ==================== PPT 请求/响应 ====================
+
+class PresentationBase(BaseModel):
+    """PPT 基础模型"""
+    title: str = Field(..., min_length=1, max_length=255)
+
+
+class PresentationCreate(PresentationBase):
+    """创建 PPT 请求"""
+    template_id: Optional[str] = None
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "title": "AI 产品介绍",
+                "template_id": "business-modern"
+            }
+        }
+
+
+class PresentationUpdate(BaseModel):
+    """更新 PPT 请求"""
+    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    slides: Optional[List[Slide]] = None
+    status: Optional[str] = Field(None, pattern="^(draft|published|archived)$")
+
+
+class PresentationResponse(PresentationBase):
+    """PPT 响应"""
+    id: UUID
+    user_id: UUID
+    slides: List[Slide]
+    status: str
+    version: int
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class PresentationDetailResponse(PresentationResponse):
+    """PPT 详情"""
+    ai_prompt: Optional[str] = None
+    ai_parameters: Optional[Dict[str, Any]] = None
+
+
+# ==================== 幻灯片操作 ====================
+
+class SlideCreate(BaseModel):
+    """添加幻灯片"""
+    type: str = "content"
+    content: SlideContent
+    layout: Optional[SlideLayout] = None
+    position: Optional[int] = Field(None, description="插入位置，None 表示末尾")
+
+
+class SlideUpdate(BaseModel):
+    """更新幻灯片"""
+    type: Optional[str] = None
+    content: Optional[SlideContent] = None
+    layout: Optional[SlideLayout] = None
+    style: Optional[SlideStyle] = None
+    notes: Optional[str] = None
+
+
+# ==================== 生成请求 ====================
+
+class GenerateRequest(BaseModel):
+    """生成 PPT 请求"""
+    prompt: str = Field(..., min_length=10, max_length=2000, description="生成提示词")
+    template_id: Optional[str] = Field(None, description="模板 ID")
+    num_slides: int = Field(default=10, ge=1, le=50, description="幻灯片数量")
+    language: str = Field(default="zh", pattern="^(zh|en)$")
+    style: str = Field(default="business", description="风格: business, education, creative, minimal")
+    provider: Optional[str] = Field(None, description="指定 AI 提供商")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "prompt": "制作一个关于人工智能发展历程的 PPT",
+                "num_slides": 8,
+                "language": "zh",
+                "style": "business"
+            }
+        }
+
+
+class GenerateResponse(BaseModel):
+    """生成任务响应"""
+    task_id: UUID
+    status: str
+    estimated_time: int = Field(..., description="预估秒数")
+    message: str
+
+
+class GenerateStatusResponse(BaseModel):
+    """生成状态响应"""
+    task_id: UUID
+    status: str  # pending, processing, completed, failed, cancelled
+    progress: int  # 0-100
+    result: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+# ==================== 导出请求 ====================
+
+class ExportRequest(BaseModel):
+    """导出请求"""
+    format: str = Field(..., pattern="^(pptx|pdf|png|jpg)$")
+    quality: str = Field(default="standard", pattern="^(standard|high)$")
+    slide_range: Optional[str] = Field(None, description="页面范围，如 '1-5' 或 'all'")
+
+
+class ExportResponse(BaseModel):
+    """导出任务响应"""
+    export_task_id: UUID
+    status: str
+    download_url: Optional[str] = None
+    expires_at: Optional[datetime] = None

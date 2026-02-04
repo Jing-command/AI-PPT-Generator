@@ -15,6 +15,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.api_key import UserAPIKey
+    from app.models.presentation import GenerationTask, Presentation
 
 
 class User(Base):
@@ -75,6 +76,16 @@ class User(Base):
     # 关联关系
     api_keys: Mapped[List["UserAPIKey"]] = relationship(
         "UserAPIKey",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    presentations: Mapped[List["Presentation"]] = relationship(
+        "Presentation",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    generation_tasks: Mapped[List["GenerationTask"]] = relationship(
+        "GenerationTask",
         back_populates="user",
         cascade="all, delete-orphan"
     )
