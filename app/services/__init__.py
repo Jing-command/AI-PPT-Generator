@@ -4,6 +4,8 @@
 
 from app.services.api_key_service import APIKeyService, get_api_key_service
 from app.services.encryption_service import api_key_encryption
+from app.services.export_service import ExportService, get_export_service
+from app.services.export_task_service import ExportTaskService, get_export_task_service
 from app.services.operation_history_service import (
     OperationHistoryService,
     get_operation_history_service,
@@ -27,4 +29,8 @@ __all__ = [
     "get_ppt_service",
     "OperationHistoryService",
     "get_operation_history_service",
+    "ExportService",
+    "get_export_service",
+    "ExportTaskService",
+    "get_export_task_service",
 ]
