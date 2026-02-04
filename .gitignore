@@ -16,15 +16,20 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual Environment
 venv/
 env/
 ENV/
 .venv/
+env.bak/
+venv.bak/
 
 # IDE
 .vscode/
