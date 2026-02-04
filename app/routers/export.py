@@ -14,6 +14,7 @@ from app.models.user import User
 from app.schemas.presentation import ExportRequest, ExportResponse
 from app.services.export_task_service import get_export_task_service
 from app.services.ppt_service import get_ppt_service
+from app.tasks.export_tasks import process_export_task
 
 router = APIRouter(prefix="/ppt/{ppt_id}/export", tags=["PPT 导出"])
 
@@ -58,9 +59,8 @@ async def submit_export_task(
         request.quality
     )
     
-    # TODO: 启动异步任务处理
-    # from app.tasks import process_export_task
-    # process_export_task.delay(str(task.id))
+    # 启动异步导出任务
+    process_export_task.delay(str(task.id))
     
     return ExportResponse(
         export_task_id=task.id,

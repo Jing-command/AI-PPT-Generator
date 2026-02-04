@@ -18,6 +18,7 @@ from app.schemas.presentation import (
     GenerateStatusResponse,
 )
 from app.services.ppt_generation_service import get_ppt_generation_service
+from app.tasks.generation_tasks import process_generation_task
 
 router = APIRouter(prefix="/ppt/generate", tags=["PPT 生成"])
 
@@ -44,14 +45,13 @@ async def submit_generation_task(
     try:
         task = await service.create_task(current_user.id, request)
         
-        # TODO: 启动异步任务（Celery）
-        # from app.tasks import generate_ppt_task
-        # generate_ppt_task.delay(str(task.id))
+        # 启动异步生成任务
+        process_generation_task.delay(str(task.id))
         
         return GenerateResponse(
             task_id=task.id,
             status=task.status,
-            estimated_time=30,  # 预估 30 秒
+            estimated_time=60,  # 预估 60 秒
             message="任务已提交，正在生成中..."
         )
         
