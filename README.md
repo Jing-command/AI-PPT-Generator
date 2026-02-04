@@ -1,26 +1,28 @@
-# 🤖 AI PPT Generator - Backend
+# AI PPT Generator Backend
 
-AI 驱动的 PPT 生成服务后端
+基于 FastAPI 的 AI PPT 生成器后端服务。
 
-## ✨ 特性
+## 🚀 功能特性
 
-- 🤖 **多 AI 提供商支持** - OpenAI, Claude, Kimi, 阿里通义, 腾讯混元
-- 💬 **对话式编辑** - 左聊右编，实时预览
-- 🎨 **丰富模板** - 多行业模板支持
-- 📤 **多格式导出** - PPTX, PDF, 图片
-- 📝 **操作历史** - 完整的撤销/重做支持
-- 🔐 **安全认证** - JWT + API Key 管理
+- **用户管理**: JWT 认证 + 刷新令牌
+- **多 AI 提供商**: OpenAI, Anthropic, Kimi, Aliyun, Tencent
+- **API Key 管理**: AES-256 加密存储，自动识别提供商
+- **PPT 生成**: AI 驱动的智能内容生成
+- **单页编辑**: 支持独立幻灯片更新
+- **撤销/重做**: 50 步操作历史
+- **导出系统**: PPTX, PDF, PNG, JPG
+- **模板系统**: 4套预设模板
 
-## 🛠️ 技术栈
+## 🛠 技术栈
 
 - **框架**: FastAPI + Python 3.12
 - **数据库**: PostgreSQL + SQLAlchemy 2.0 (异步)
 - **缓存**: Redis
 - **任务队列**: Celery
-- **认证**: JWT + bcrypt
-- **文档**: Swagger UI / ReDoc
+- **文件存储**: MinIO (S3 兼容)
+- **导出**: python-pptx, LibreOffice
 
-## 🚀 快速开始
+## 📦 快速开始
 
 ### 1. 克隆项目
 
@@ -29,111 +31,181 @@ git clone https://github.com/Jing-command/ai-ppt-backend.git
 cd ai-ppt-backend
 ```
 
-### 2. 创建虚拟环境
+### 2. 环境配置
 
 ```bash
-python3 -m venv venv
+# 创建虚拟环境
+python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # 或 venv\Scripts\activate  # Windows
-```
 
-### 3. 安装依赖
-
-```bash
+# 安装依赖
 pip install -r requirements.txt
 ```
 
-### 4. 配置环境变量
+### 3. 环境变量
 
-```bash
-cp .env.example .env
-# 编辑 .env 文件，配置数据库和密钥
+创建 `.env` 文件：
+
+```env
+# 应用配置
+APP_NAME=AI PPT Generator
+APP_ENV=development
+DEBUG=true
+
+# 数据库
+DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/aippt
+DATABASE_URL_SYNC=postgresql://postgres:password@localhost:5432/aippt
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# JWT
+JWT_SECRET_KEY=your-super-secret-key-here
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# MinIO (文件存储)
+STORAGE_TYPE=minio
+MINIO_ENDPOINT=localhost:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET_NAME=aippt
+MINIO_SECURE=false
+
+# 可选：用于测试的本地存储
+STORAGE_LOCAL_PATH=./storage
 ```
 
-### 5. 启动服务
+### 4. 启动服务
 
-**方式一：本地开发**
 ```bash
-uvicorn app.main:app --reload
-```
-
-**方式二：Docker**
-```bash
+# 使用 Docker Compose 启动依赖服务
 cd docker
 docker-compose up -d
+
+# 返回项目根目录
+cd ..
+
+# 运行数据库迁移
+alembic upgrade head
+
+# 启动开发服务器
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 6. 访问文档
+## 🐳 Docker 部署
 
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+```bash
+# 一键启动所有服务
+docker-compose -f docker/docker-compose.yml up -d
 
-## 📁 项目结构
+# 查看日志
+docker-compose -f docker/docker-compose.yml logs -f
 
+# 停止服务
+docker-compose -f docker/docker-compose.yml down
 ```
-ai-ppt-backend/
-├── app/                    # 应用代码
-│   ├── models/            # 数据库模型
-│   ├── schemas/           # Pydantic 模型
-│   ├── routers/           # API 路由
-│   ├── services/          # 业务逻辑
-│   ├── core/              # 核心工具
-│   ├── utils/             # 工具函数
-│   ├── config.py          # 配置管理
-│   ├── database.py        # 数据库连接
-│   └── main.py            # 应用入口
-├── tests/                 # 测试
-├── alembic/               # 数据库迁移
-├── docker/                # Docker 配置
-├── requirements.txt       # 依赖
-└── README.md             # 本文件
+
+## 📚 API 文档
+
+启动服务后访问：
+
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+## 🔑 主要 API
+
+### 认证
+```
+POST /api/v1/auth/register          # 用户注册
+POST /api/v1/auth/login             # 用户登录
+POST /api/v1/auth/refresh           # 刷新令牌
+```
+
+### API Key 管理
+```
+POST   /api/v1/api-keys             # 添加 API Key
+GET    /api/v1/api-keys             # 获取列表
+PATCH  /api/v1/api-keys/{id}        # 更新
+DELETE /api/v1/api-keys/{id}        # 删除
+```
+
+### PPT 生成
+```
+POST /api/v1/ppt/generate           # AI 生成 PPT
+GET  /api/v1/ppt/{id}               # 获取 PPT
+PUT  /api/v1/ppt/{id}               # 更新 PPT
+```
+
+### 单页编辑
+```
+GET    /api/v1/ppt/{id}/slides/{id}    # 获取单页
+PATCH  /api/v1/ppt/{id}/slides/{id}    # 更新单页
+POST   /api/v1/ppt/{id}/slides         # 添加页面
+DELETE /api/v1/ppt/{id}/slides/{id}    # 删除页面
+```
+
+### 撤销/重做
+```
+POST /api/v1/ppt/{id}/undo          # 撤销
+POST /api/v1/ppt/{id}/redo          # 重做
+GET  /api/v1/ppt/{id}/history       # 操作历史
+```
+
+### 导出
+```
+POST /api/v1/ppt/{id}/export        # 提交导出任务
+GET  /api/v1/ppt/{id}/export/{tid}/status  # 查询状态
+```
+
+### 模板
+```
+GET  /api/v1/templates              # 模板列表
+GET  /api/v1/templates/categories   # 模板分类
+GET  /api/v1/templates/{id}         # 模板详情
 ```
 
 ## 🧪 测试
 
 ```bash
 # 运行测试
-pytest
+pytest tests/ -v
 
-# 带覆盖率
-pytest --cov=app --cov-report=html
+# 运行特定测试
+pytest tests/test_auth.py -v
+
+# 覆盖率报告
+pytest --cov=app tests/
 ```
 
-## 📝 API 规范
+## 📁 项目结构
 
-所有接口遵循 RESTful 规范，统一响应格式：
-
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": { ... }
-}
+```
+ai-ppt-backend/
+├── app/
+│   ├── main.py              # 应用入口
+│   ├── config.py            # 配置
+│   ├── database.py          # 数据库连接
+│   ├── models/              # SQLAlchemy 模型
+│   ├── schemas/             # Pydantic 模型
+│   ├── routers/             # API 路由
+│   ├── services/            # 业务逻辑
+│   └── core/                # 核心工具
+├── alembic/                 # 数据库迁移
+├── docker/                  # Docker 配置
+├── tests/                   # 测试
+├── requirements.txt         # 生产依赖
+└── requirements-dev.txt     # 开发依赖
 ```
 
-### 主要端点
+## ⚠️ 注意事项
 
-| 端点 | 描述 |
-|------|------|
-| `POST /api/v1/auth/register` | 用户注册 |
-| `POST /api/v1/auth/login` | 用户登录 |
-| `POST /api/v1/ppt/generate` | 生成 PPT |
-| `GET /api/v1/ppt` | PPT 列表 |
-| `GET /api/v1/ppt/{id}` | PPT 详情 |
-| `PUT /api/v1/ppt/{id}/slides/{slide_id}` | 单页编辑 |
-| `POST /api/v1/ppt/{id}/undo` | 撤销 |
+1. **API Key 加密**: 用户 API Key 使用 AES-256-CBC 加密存储，密钥从 `JWT_SECRET_KEY` 派生
+2. **文件导出**: PDF 导出需要安装 LibreOffice
+3. **测试环境**: 建议使用 PostgreSQL 进行测试（SQLite UUID 类型兼容性有限）
 
-## 🗺️ 路线图
-
-- [x] Sprint 1: 基础架构 + 认证
-- [ ] Sprint 2: API Key 管理
-- [ ] Sprint 3: PPT 生成核心
-- [ ] Sprint 4: PPT 管理 + 单页编辑
-- [ ] Sprint 5: 操作历史 + 撤销
-- [ ] Sprint 6: 导出系统
-- [ ] Sprint 7: 模板系统
-- [ ] Sprint 8: 优化与测试
-
-## 📄 License
+## 📄 许可证
 
 MIT License
