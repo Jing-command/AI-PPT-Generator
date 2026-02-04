@@ -5,12 +5,16 @@
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING, List
 
 from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.api_key import UserAPIKey
 
 
 class User(Base):
@@ -66,6 +70,13 @@ class User(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
         comment="更新时间"
+    )
+    
+    # 关联关系
+    api_keys: Mapped[List["UserAPIKey"]] = relationship(
+        "UserAPIKey",
+        back_populates="user",
+        cascade="all, delete-orphan"
     )
     
     def __repr__(self) -> str:

@@ -3,6 +3,14 @@ Schemas 包初始化
 导出所有 Pydantic 模型
 """
 
+from app.schemas.api_key import (
+    APIKeyBase,
+    APIKeyCreate,
+    APIKeyDetailResponse,
+    APIKeyResponse,
+    APIKeyUpdate,
+    APIKeyVerifyResponse,
+)
 from app.schemas.user import (
     ErrorResponse,
     LoginRequest,
@@ -14,6 +22,7 @@ from app.schemas.user import (
 )
 
 __all__ = [
+    # User
     "UserBase",
     "UserCreate",
     "UserResponse",
@@ -21,4 +30,11 @@ __all__ = [
     "LoginRequest",
     "RefreshTokenRequest",
     "ErrorResponse",
+    # API Key
+    "APIKeyBase",
+    "APIKeyCreate",
+    "APIKeyUpdate",
+    "APIKeyResponse",
+    "APIKeyDetailResponse",
+    "APIKeyVerifyResponse",
 ]

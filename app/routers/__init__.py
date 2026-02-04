@@ -5,7 +5,7 @@
 
 from fastapi import APIRouter
 
-from app.routers import auth, users
+from app.routers import api_keys, auth, users
 
 # 创建主路由
 api_router = APIRouter(prefix="/api/v1")
@@ -13,5 +13,6 @@ api_router = APIRouter(prefix="/api/v1")
 # 注册子路由
 api_router.include_router(auth.router)
 api_router.include_router(users.router)
+api_router.include_router(api_keys.router)
 
 __all__ = ["api_router"]
