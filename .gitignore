@@ -24,6 +24,7 @@ wheels/
 venv/
 env/
 ENV/
+.venv/
 
 # IDE
 .vscode/
@@ -36,6 +37,7 @@ ENV/
 .env
 .env.local
 .env.*.local
+.env.example
 
 # Database
 *.db
@@ -45,6 +47,11 @@ ENV/
 storage/
 exports/
 uploads/
+*.pptx
+*.pdf
+*.png
+*.jpg
+*.jpeg
 
 # Logs
 *.log
@@ -69,3 +76,14 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+*.cache
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Redis
+dump.rdb
+
+# Local development
+docker-compose.override.yml
