@@ -3,10 +3,11 @@
 处理撤销/重做功能
 """
 
+from datetime import datetime
 from typing import List, Optional, Tuple
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.operation_history import OperationHistory
@@ -52,14 +53,14 @@ class OperationHistoryService:
         Returns:
             创建的记录
         """
-        # 删除该 PPT 所有已撤销的操作（超过 redo 栈的）
+        # 删除该 PPT 所有已撤销的操作（redo 栈清空）
+        # 当用户进行新操作时，之前的撤销历史不能再恢复
         await self.db.execute(
-            update(OperationHistory)
+            delete(OperationHistory)
             .where(
                 OperationHistory.ppt_id == ppt_id,
                 OperationHistory.is_undone == True
             )
-            .values(is_undone=True)  # 标记为永久删除
         )
         
         operation = OperationHistory(
@@ -144,7 +145,21 @@ class OperationHistoryService:
         operation.is_undone = True
         operation.undone_at = datetime.utcnow()
         
-        # 恢复 before_state
+        # 恢复 PPT 状态
+        if operation.before_state:
+            ppt_result = await self.db.execute(
+                select(Presentation).where(
+                    Presentation.id == ppt_id,
+                    Presentation.user_id == user_id
+                )
+            )
+            ppt = ppt_result.scalar_one_or_none()
+            if ppt and 'slides' in operation.before_state:
+                ppt.slides = operation.before_state['slides']
+                if 'title' in operation.before_state:
+                    ppt.title = operation.before_state['title']
+                ppt.version += 1
+        
         await self.db.commit()
         
         return True, operation.description, operation.before_state
@@ -172,7 +187,7 @@ class OperationHistoryService:
                 OperationHistory.user_id == user_id,
                 OperationHistory.is_undone == True
             )
-            .order_by(OperationHistory.undone_at.asc())  # 最早撤销的先恢复
+            .order_by(OperationHistory.undone_at.desc())  # 最晚撤销的先恢复
             .limit(1)
         )
         
@@ -184,6 +199,21 @@ class OperationHistoryService:
         # 取消撤销标记
         operation.is_undone = False
         operation.undone_at = None
+        
+        # 应用操作后的状态
+        if operation.after_state:
+            ppt_result = await self.db.execute(
+                select(Presentation).where(
+                    Presentation.id == ppt_id,
+                    Presentation.user_id == user_id
+                )
+            )
+            ppt = ppt_result.scalar_one_or_none()
+            if ppt and 'slides' in operation.after_state:
+                ppt.slides = operation.after_state['slides']
+                if 'title' in operation.after_state:
+                    ppt.title = operation.after_state['title']
+                ppt.version += 1
         
         await self.db.commit()
         
@@ -214,9 +244,6 @@ class OperationHistoryService:
             .limit(1)
         )
         return result.scalar_one_or_none() is not None
-
-
-from datetime import datetime
 
 
 def get_operation_history_service(db: AsyncSession) -> OperationHistoryService:
