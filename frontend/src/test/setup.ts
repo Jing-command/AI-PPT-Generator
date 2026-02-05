@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom'
-import { vi } from 'vitest'
+import { cleanup } from '@testing-library/react'
+import { afterEach, vi } from 'vitest'
 
 // Mock localStorage
 const localStorageMock = {
@@ -21,7 +22,6 @@ Object.defineProperty(window, 'location', {
 })
 
 // Cleanup after each test
-import { cleanup } from '@testing-library/react'
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()

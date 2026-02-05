@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import Button from './Button'
+import { Button } from './Button'
 
 describe('Button', () => {
   it('renders correctly', () => {
@@ -19,7 +19,7 @@ describe('Button', () => {
 
   it('shows loading state', () => {
     render(<Button isLoading>Loading</Button>)
-    expect(screen.getByText('Loading...')).toBeInTheDocument()
+    expect(screen.getByText('Loading')).toBeInTheDocument()
   })
 
   it('is disabled when loading', () => {

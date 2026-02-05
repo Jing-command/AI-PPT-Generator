@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import Input from './Input'
+import { Input } from './Input'
 
 describe('Input', () => {
   it('renders with label', () => {
@@ -35,13 +35,13 @@ describe('Input', () => {
   })
 
   it('supports different types', () => {
-    const { rerender } = render(<Input type="text" />)
-    expect(screen.getByRole('textbox')).toHaveAttribute('type', 'text')
+    const { rerender } = render(<Input label="Field" type="text" />)
+    expect(screen.getByLabelText('Field')).toHaveAttribute('type', 'text')
 
-    rerender(<Input type="password" />)
-    expect(screen.getByRole('textbox')).toHaveAttribute('type', 'password')
+    rerender(<Input label="Field" type="password" />)
+    expect(screen.getByLabelText('Field')).toHaveAttribute('type', 'password')
 
-    rerender(<Input type="email" />)
-    expect(screen.getByRole('textbox')).toHaveAttribute('type', 'email')
+    rerender(<Input label="Field" type="email" />)
+    expect(screen.getByLabelText('Field')).toHaveAttribute('type', 'email')
   })
 })
