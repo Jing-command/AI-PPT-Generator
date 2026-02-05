@@ -36,6 +36,19 @@ npm run dev
 npm run build
 ```
 
+## 🧪 测试
+
+```bash
+# 运行测试
+npm test
+
+# 运行测试 (UI模式)
+npm run test:ui
+
+# 生成覆盖率报告
+npm run test:coverage
+```
+
 ## 📁 项目结构
 
 ```
