@@ -6,8 +6,19 @@
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+try:
+    from jose import JWTError, jwt
+except ImportError:
+    raise ImportError(
+        "python-jose is not installed. Please install it using: pip install python-jose[cryptography]"
+    )
+
+try:
+    from passlib.context import CryptContext
+except ImportError:
+    raise ImportError(
+        "passlib is not installed. Please install it using: pip install passlib[bcrypt]"
+    )
 
 from app.config import settings
 
@@ -26,6 +37,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         是否匹配
     """
+    # 确保密码是字节串，并限制在72字节内（bcrypt限制）
+    if isinstance(plain_password, str):
+        plain_password = plain_password.encode('utf-8')[:72].decode('utf-8')
     return pwd_context.verify(plain_password, hashed_password)
 
 
@@ -39,6 +53,9 @@ def get_password_hash(password: str) -> str:
     Returns:
         bcrypt 哈希值
     """
+    # 确保密码是字节串，并限制在72字节内（bcrypt限制）
+    if isinstance(password, str):
+        password = password.encode('utf-8')[:72].decode('utf-8')
     return pwd_context.hash(password)
 
 

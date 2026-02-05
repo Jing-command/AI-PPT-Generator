@@ -6,7 +6,11 @@ AI PPT 核心功能测试（无需数据库）
 
 import asyncio
 import sys
-sys.path.insert(0, '/root/projects/ai-ppt-backend')
+import os
+
+# 添加项目根目录到 Python 路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
 from app.core.security import (
     create_access_token,
@@ -123,8 +127,8 @@ def test_schemas():
     assert login.email == "test@example.com"
     print("  ✅ LoginRequest Schema 正常")
     
-    # 3. PPT 生成请求
-    gen = GenerateRequest(prompt="测试", num_slides=5)
+    # 3. PPT 生成请求（prompt最少10个字符）
+    gen = GenerateRequest(prompt="创建一份关于人工智能的演示文稿", num_slides=5)
     assert gen.num_slides == 5
     print("  ✅ GenerateRequest Schema 正常")
     
