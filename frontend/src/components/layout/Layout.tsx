@@ -1,10 +1,16 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { FileText, LayoutTemplate, Settings, LogOut, User } from 'lucide-react'
+import { useEffect } from 'react'
 import { useAuthStore } from '@/stores'
 
 export default function Layout() {
   const location = useLocation()
-  const { user, logout } = useAuthStore()
+  const { user, logout, fetchCurrentUser } = useAuthStore()
+
+  // 组件挂载时获取当前用户信息
+  useEffect(() => {
+    fetchCurrentUser()
+  }, [fetchCurrentUser])
 
   const navigation = [
     { name: '我的PPT', href: '/', icon: FileText },

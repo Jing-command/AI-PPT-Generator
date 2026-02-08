@@ -50,6 +50,9 @@ export default function TemplatesPage() {
   const handleUseTemplate = async (template: Template) => {
     setCreatingId(template.id)
     try {
+      // 记录模板使用
+      await templateService.useTemplate(template.id)
+      
       const newPPT = await pptService.createPresentation({
         title: `${template.name} - 我的PPT`,
         template_id: template.id,

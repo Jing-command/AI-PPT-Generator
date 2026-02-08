@@ -117,6 +117,10 @@ export const templateService = {
     const response = await apiClient.get<ApiResponse<TemplateCategory[]>>('/templates/categories')
     return response.data.data || []
   },
+
+  async useTemplate(id: string): Promise<void> {
+    await apiClient.post<ApiResponse<void>>(`/templates/${id}/use`)
+  },
 }
 
 // API Key 服务

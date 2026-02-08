@@ -118,6 +118,8 @@ export interface GenerationTask {
   progress: number
   estimated_time: number
   message: string
+  result?: Presentation
+  error?: string
 }
 
 // 导出

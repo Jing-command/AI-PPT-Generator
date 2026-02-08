@@ -5,6 +5,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import apiClient from '@/services/api'
 import type { User, Token } from '@/types'
 
 interface AuthState {
@@ -22,6 +23,7 @@ interface AuthState {
   clearError: () => void
   login: (token: Token, user: User) => void
   logout: () => void
+  fetchCurrentUser: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -48,6 +50,18 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
         set({ user: null, isAuthenticated: false, error: null })
+      },
+
+      fetchCurrentUser: async () => {
+        try {
+          const response = await apiClient.get('/users/me')
+          const userData = response.data.data
+          if (userData) {
+            set({ user: userData })
+          }
+        } catch (err) {
+          console.error('Failed to fetch current user:', err)
+        }
       },
     }),
     {

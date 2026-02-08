@@ -1,11 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Undo, Redo, Download, Plus, Trash2, Wand2 } from 'lucide-react'
+import { ChevronLeft, Undo, Redo, Download, Plus, Trash2, Wand2, X, Loader2 } from 'lucide-react'
 import { pptService, generationService, exportService } from '@/services'
 import { usePPTStore } from '@/stores'
 import { Button } from '@/components/common/Button'
 import { Card } from '@/components/common/Card'
-import type { Slide } from '@/types'
+import type { Slide, GenerationTask } from '@/types'
+
+// 防抖函数
+function debounce<T extends (...args: unknown[]) => unknown>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout> | null = null
+  return (...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout)
+    timeout = setTimeout(() => func(...args), wait)
+  }
+}
 
 export default function EditorPage() {
   const { id } = useParams<{ id: string }>()
@@ -25,16 +37,50 @@ export default function EditorPage() {
     setCanUndo,
     setCanRedo,
     isSaving,
+    setSaving,
   } = usePPTStore()
 
   const [isLoading, setIsLoading] = useState(true)
   const [showAiDialog, setShowAiDialog] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  
+  // AI生成任务状态
+  const [generationTask, setGenerationTask] = useState<GenerationTask | null>(null)
+  const [showGenerationProgress, setShowGenerationProgress] = useState(false)
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // 幻灯片编辑防抖保存
+  const saveSlide = useCallback(
+    debounce(async (slideId: string, slideData: Partial<Slide>) => {
+      if (!id) return
+      setSaving(true)
+      try {
+        await pptService.updateSlide(id, slideId, slideData)
+      } catch (err) {
+        console.error('Failed to save slide:', err)
+      } finally {
+        setSaving(false)
+      }
+    }, 1500),
+    [id, setSaving]
+  )
+
+  // 清理轮询
+  const clearPollInterval = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+  }
 
   useEffect(() => {
     if (id) {
       loadPPT(id)
+    }
+    // 组件卸载时清理轮询
+    return () => {
+      clearPollInterval()
     }
   }, [id])
 
@@ -43,13 +89,53 @@ export default function EditorPage() {
     try {
       const data = await pptService.getPresentation(pptId)
       setCurrentPPT(data)
-      setCanUndo(true) // 简化处理
+      setCanUndo(true)
       setCanRedo(false)
     } catch (err) {
       console.error('Failed to load PPT:', err)
       navigate('/')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // 轮询生成任务状态
+  const pollGenerationStatus = (taskId: string) => {
+    clearPollInterval()
+    setShowGenerationProgress(true)
+    
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const status = await generationService.getStatus(taskId)
+        setGenerationTask(status)
+        
+        if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled') {
+          clearPollInterval()
+          if (status.status === 'completed') {
+            // 刷新PPT内容
+            if (id) loadPPT(id)
+            setTimeout(() => {
+              setShowGenerationProgress(false)
+              setGenerationTask(null)
+            }, 3000)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to poll generation status:', err)
+      }
+    }, 2000)
+  }
+
+  // 取消生成任务
+  const handleCancelGeneration = async () => {
+    if (!generationTask?.task_id) return
+    try {
+      await generationService.cancel(generationTask.task_id)
+      clearPollInterval()
+      setShowGenerationProgress(false)
+      setGenerationTask(null)
+    } catch (err) {
+      console.error('Failed to cancel generation:', err)
     }
   }
 
@@ -126,17 +212,46 @@ export default function EditorPage() {
         num_slides: 5,
         language: 'zh',
       })
-      alert(`AI 生成任务已创建，任务ID: ${result.task_id}`)
+      
       setShowAiDialog(false)
       setAiPrompt('')
+      
+      // 开始轮询任务状态
+      const initialTask: GenerationTask = {
+        task_id: result.task_id,
+        status: 'pending',
+        progress: 0,
+        estimated_time: 60,
+        message: '任务已提交，正在生成中...',
+      }
+      setGenerationTask(initialTask)
+      pollGenerationStatus(result.task_id)
+      
     } catch (err) {
       console.error('AI generation failed:', err)
+      alert('生成任务创建失败')
     } finally {
       setIsGenerating(false)
     }
   }
 
   const selectedSlide = slides.find((s) => s.id === selectedSlideId)
+
+  // 处理标题变化（本地更新 + 自动保存）
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedSlide) return
+    const newContent = { ...selectedSlide.content, title: e.target.value }
+    updateSlide(selectedSlide.id, { content: newContent })
+    saveSlide(selectedSlide.id, { content: newContent })
+  }
+
+  // 处理内容变化（本地更新 + 自动保存）
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!selectedSlide) return
+    const newContent = { ...selectedSlide.content, text: e.target.value }
+    updateSlide(selectedSlide.id, { content: newContent })
+    saveSlide(selectedSlide.id, { content: newContent })
+  }
 
   if (isLoading) {
     return (
@@ -175,6 +290,42 @@ export default function EditorPage() {
           </Button>
         </div>
       </div>
+
+      {/* 生成进度条 */}
+      {showGenerationProgress && generationTask && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+              <span className="text-sm text-blue-800">{generationTask.message}</span>
+              <span className="text-xs text-blue-600">
+                {generationTask.status === 'pending' && '等待中...'}
+                {generationTask.status === 'processing' && `生成中 ${generationTask.progress}%`}
+                {generationTask.status === 'completed' && '✅ 生成完成'}
+                {generationTask.status === 'failed' && '❌ 生成失败'}
+                {generationTask.status === 'cancelled' && '已取消'}
+              </span>
+            </div>
+            {(generationTask.status === 'pending' || generationTask.status === 'processing') && (
+              <button
+                onClick={handleCancelGeneration}
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                取消
+              </button>
+            )}
+          </div>
+          {(generationTask.status === 'pending' || generationTask.status === 'processing') && (
+            <div className="mt-2 h-1 bg-blue-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-600 transition-all duration-300"
+                style={{ width: `${generationTask.progress}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 主编辑区 */}
       <div className="flex-1 flex overflow-hidden">
@@ -222,19 +373,13 @@ export default function EditorPage() {
                 <input
                   type="text"
                   value={selectedSlide.content?.title || ''}
-                  onChange={(e) => {
-                    const newContent = { ...selectedSlide.content, title: e.target.value }
-                    updateSlide(selectedSlide.id, { content: newContent })
-                  }}
+                  onChange={handleTitleChange}
                   className="w-full text-3xl font-bold border-none focus:ring-0 p-0 placeholder-gray-300"
                   placeholder="输入标题"
                 />
                 <textarea
                   value={selectedSlide.content?.text || ''}
-                  onChange={(e) => {
-                    const newContent = { ...selectedSlide.content, text: e.target.value }
-                    updateSlide(selectedSlide.id, { content: newContent })
-                  }}
+                  onChange={handleContentChange}
                   className="w-full h-64 mt-4 resize-none border-none focus:ring-0 p-0 placeholder-gray-300"
                   placeholder="输入内容..."
                 />

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Key, Plus, Trash2, Check, AlertCircle } from 'lucide-react'
+import { Key, Plus, Trash2, Check, AlertCircle, RefreshCw } from 'lucide-react'
 import { apiKeyService } from '@/services'
 import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
@@ -20,6 +20,8 @@ export default function SettingsPage() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newKey, setNewKey] = useState({ name: '', api_key: '', provider: 'openai', is_default: false })
   const [error, setError] = useState('')
+  const [verifyingId, setVerifyingId] = useState<string | null>(null)
+  const [verifyResults, setVerifyResults] = useState<Record<string, { valid: boolean; message: string }>>({})
 
   useEffect(() => {
     loadApiKeys()
@@ -59,6 +61,21 @@ export default function SettingsPage() {
       await loadApiKeys()
     } catch (err) {
       console.error('Failed to delete:', err)
+    }
+  }
+
+  const handleVerify = async (id: string) => {
+    setVerifyingId(id)
+    try {
+      const result = await apiKeyService.verify(id)
+      setVerifyResults(prev => ({ ...prev, [id]: result }))
+    } catch (err) {
+      setVerifyResults(prev => ({ 
+        ...prev, 
+        [id]: { valid: false, message: err instanceof Error ? err.message : '验证失败' } 
+      }))
+    } finally {
+      setVerifyingId(null)
     }
   }
 
@@ -154,11 +171,11 @@ export default function SettingsPage() {
                   key={key.id}
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-1">
                     <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
                       <Key className="w-5 h-5 text-primary-600" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium text-gray-900">{key.name}</p>
                       <p className="text-sm text-gray-500">
                         {PROVIDERS.find((p) => p.value === key.provider)?.label || key.provider}
@@ -168,15 +185,36 @@ export default function SettingsPage() {
                           </span>
                         )}
                       </p>
+                      {/* 验证结果 */}
+                      {verifyResults[key.id] && (
+                        <p className={`text-xs mt-1 ${verifyResults[key.id].valid ? 'text-green-600' : 'text-red-600'}`}>
+                          {verifyResults[key.id].valid ? '✅' : '❌'} {verifyResults[key.id].message}
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleDelete(key.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleVerify(key.id)}
+                      disabled={verifyingId === key.id}
+                      className="p-2 text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+                      title="验证 API Key"
+                    >
+                      {verifyingId === key.id ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(key.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                      title="删除"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))
             )}
