@@ -204,7 +204,8 @@ ai-ppt-backend/
 
 1. **API Key 加密**: 用户 API Key 使用 AES-256-CBC 加密存储，密钥从 `JWT_SECRET_KEY` 派生
 2. **文件导出**: PDF 导出需要安装 LibreOffice
-3. **测试环境**: 建议使用 PostgreSQL 进行测试（SQLite UUID 类型兼容性有限）
+3. **测试环境**: SQLite 内存库已支持 UUID/JSON 类型，用于本地快速测试；生产仍建议使用 PostgreSQL
+4. **测试警告**: 已在 `pytest.ini` 过滤第三方库的 UTC 弃用警告
 
 ## 📄 许可证
 

@@ -8,10 +8,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List
 
 from sqlalchemy import Boolean, DateTime, String
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.utils.datetime import utcnow_aware
+from app.core.custom_types import GUID
 
 if TYPE_CHECKING:
     from app.models.api_key import UserAPIKey
@@ -35,7 +36,7 @@ class User(Base):
     __tablename__ = "users"
     
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         primary_key=True,
         default=uuid.uuid4
     )
@@ -62,14 +63,14 @@ class User(Base):
         comment="账户是否激活"
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
+        DateTime(timezone=True),
+        default=utcnow_aware,
         comment="创建时间"
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        DateTime(timezone=True),
+        default=utcnow_aware,
+        onupdate=utcnow_aware,
         comment="更新时间"
     )
     

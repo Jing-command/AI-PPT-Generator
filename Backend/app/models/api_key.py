@@ -7,10 +7,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.utils.datetime import utcnow_aware
+from app.core.custom_types import GUID
 
 
 class UserAPIKey(Base):
@@ -28,12 +29,12 @@ class UserAPIKey(Base):
     __tablename__ = "user_api_keys"
     
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         primary_key=True,
         default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -77,21 +78,21 @@ class UserAPIKey(Base):
     
     # 最后验证时间
     last_verified_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         comment="最后一次验证成功时间"
     )
     
     # 时间戳
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
+        DateTime(timezone=True),
+        default=utcnow_aware,
         comment="创建时间"
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        DateTime(timezone=True),
+        default=utcnow_aware,
+        onupdate=utcnow_aware,
         comment="更新时间"
     )
     

@@ -8,10 +8,11 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.utils.datetime import utcnow_aware
+from app.core.custom_types import GUID, JSONType
 
 
 class OperationHistory(Base):
@@ -25,18 +26,18 @@ class OperationHistory(Base):
     __tablename__ = "operation_history"
     
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         primary_key=True,
         default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
     ppt_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("presentations.id", ondelete="CASCADE"),
         nullable=False,
         index=True
@@ -56,12 +57,12 @@ class OperationHistory(Base):
     
     # 状态快照
     before_state: Mapped[Optional[dict]] = mapped_column(
-        JSONB,
+        JSONType(),
         nullable=True,
         comment="操作前的状态"
     )
     after_state: Mapped[Optional[dict]] = mapped_column(
-        JSONB,
+        JSONType(),
         nullable=True,
         comment="操作后的状态"
     )
@@ -80,14 +81,14 @@ class OperationHistory(Base):
         comment="是否已被撤销"
     )
     undone_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True
     )
     
     # 时间戳
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow
+        DateTime(timezone=True),
+        default=utcnow_aware
     )
     
     def __repr__(self) -> str:

@@ -7,10 +7,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.utils.datetime import utcnow_aware
+from app.core.custom_types import GUID, JSONType
 
 
 class Template(Base):
@@ -23,7 +24,7 @@ class Template(Base):
     __tablename__ = "templates"
     
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         primary_key=True,
         default=uuid.uuid4
     )
@@ -48,7 +49,7 @@ class Template(Base):
     
     # 模板内容
     content: Mapped[dict] = mapped_column(
-        JSONB,
+        JSONType(),
         nullable=False,
         comment="模板结构：包含 slides, layouts, styles, theme"
     )
@@ -83,13 +84,13 @@ class Template(Base):
     
     # 时间戳
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow
+        DateTime(timezone=True),
+        default=utcnow_aware
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        DateTime(timezone=True),
+        default=utcnow_aware,
+        onupdate=utcnow_aware
     )
     
     def __repr__(self) -> str:

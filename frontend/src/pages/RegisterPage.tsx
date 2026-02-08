@@ -19,6 +19,8 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  const getPasswordByteLength = (value: string) => new TextEncoder().encode(value).length
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -30,6 +32,11 @@ export default function RegisterPage() {
 
     if (formData.password.length < 8) {
       setError('密码至少需要 8 位')
+      return
+    }
+
+    if (getPasswordByteLength(formData.password) > 72) {
+      setError('密码不能超过 72 个字节（约 72 个 ASCII 字符）')
       return
     }
 
@@ -97,6 +104,7 @@ export default function RegisterPage() {
                     placeholder="••••••••"
                     required
                     minLength={8}
+                    maxLength={72}
                   />
                   <button
                     type="button"
@@ -106,7 +114,7 @@ export default function RegisterPage() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">至少 8 位字符</p>
+                <p className="mt-1 text-xs text-gray-500">8-72 个字符（ASCII），多字节字符会更短</p>
               </div>
 
               <Input

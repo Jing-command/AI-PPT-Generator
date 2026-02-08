@@ -14,8 +14,16 @@ RUN apt-get update \
 # 复制依赖文件
 COPY requirements.txt requirements-dev.txt ./
 
+# 国内镜像源（可通过 build-arg 覆盖）
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+ARG PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+
+# 设置 pip 使用镜像源
+ENV PIP_INDEX_URL=${PIP_INDEX_URL}
+ENV PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST}
+
 # 安装 Python 依赖
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt -i ${PIP_INDEX_URL} --trusted-host ${PIP_TRUSTED_HOST}
 
 # 复制应用代码
 COPY app/ ./app/

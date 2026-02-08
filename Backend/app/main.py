@@ -10,7 +10,7 @@ AI PPT Generator - FastAPI 主应用入口
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
@@ -99,6 +99,20 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
             "retry_after": 60
         }
     )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """统一 HTTP 异常返回格式"""
+    if isinstance(exc.detail, dict):
+        content = exc.detail
+    else:
+        content = {
+            "code": "HTTP_ERROR",
+            "message": exc.detail
+        }
+
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 # 全局异常处理

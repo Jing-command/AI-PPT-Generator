@@ -15,6 +15,7 @@ from app.models.presentation import GenerationTask, Presentation
 from app.services.ai_provider import AIProviderFactory
 from app.services.api_key_service import APIKeyService
 from app.tasks import celery_app
+from app.utils.datetime import utcnow_aware
 
 
 @celery_app.task(bind=True, max_retries=3)
@@ -147,7 +148,7 @@ async def _process_generation_async(task_self, task_id: str):
                 "title": presentation.title,
                 "slide_count": len(slides)
             }
-            task.completed_at = datetime.utcnow()
+            task.completed_at = utcnow_aware()
             
             await db.commit()
             
@@ -192,7 +193,7 @@ async def _cleanup_stalled_async(max_minutes: int):
     from datetime import timedelta
     
     async with AsyncSessionLocal() as db:
-        cutoff_time = datetime.utcnow() - timedelta(minutes=max_minutes)
+        cutoff_time = utcnow_aware() - timedelta(minutes=max_minutes)
         
         # 查找卡住的任务
         result = await db.execute(

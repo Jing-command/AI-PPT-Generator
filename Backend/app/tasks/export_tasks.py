@@ -16,6 +16,7 @@ from app.models.export_task import ExportTask
 from app.models.presentation import Presentation
 from app.services.export_service import ExportService
 from app.tasks import celery_app
+from app.utils.datetime import utcnow_aware
 
 # 创建同步数据库引擎用于 Celery
 database_url_sync = settings.DATABASE_URL.replace("+asyncpg", "")
@@ -90,7 +91,7 @@ async def _process_export_async(task_self, task_id: str):
             task.file_path = file_path
             if file_path:
                 task.file_size = Path(file_path).stat().st_size
-            task.completed_at = datetime.utcnow()
+            task.completed_at = utcnow_aware()
             
             print(f"[Export] 任务 {task_id} 完成: {file_path}")
             
@@ -135,7 +136,7 @@ async def _cleanup_old_exports_async(max_age_hours: int):
     async with AsyncSessionLocal() as db:
         from datetime import timedelta
         
-        cutoff_time = datetime.utcnow() - timedelta(hours=max_age_hours)
+        cutoff_time = utcnow_aware() - timedelta(hours=max_age_hours)
         
         # 查找过期任务
         result = await db.execute(

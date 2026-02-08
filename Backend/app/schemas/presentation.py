@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ==================== Slide 模型 ====================
@@ -57,13 +57,14 @@ class PresentationCreate(PresentationBase):
     """创建 PPT 请求"""
     template_id: Optional[str] = None
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "title": "AI 产品介绍",
                 "template_id": "business-modern"
             }
         }
+    )
 
 
 class PresentationUpdate(BaseModel):
@@ -83,8 +84,7 @@ class PresentationResponse(PresentationBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PresentationDetailResponse(PresentationResponse):
@@ -123,8 +123,8 @@ class GenerateRequest(BaseModel):
     style: str = Field(default="business", description="风格: business, education, creative, minimal")
     provider: Optional[str] = Field(None, description="指定 AI 提供商")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "prompt": "制作一个关于人工智能发展历程的 PPT",
                 "num_slides": 8,
@@ -132,6 +132,7 @@ class GenerateRequest(BaseModel):
                 "style": "business"
             }
         }
+    )
 
 
 class GenerateResponse(BaseModel):
@@ -153,8 +154,7 @@ class GenerateStatusResponse(BaseModel):
     updated_at: datetime
     completed_at: Optional[datetime] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==================== 导出请求 ====================

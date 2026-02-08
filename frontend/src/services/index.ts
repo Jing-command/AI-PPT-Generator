@@ -21,8 +21,13 @@ export const pptService = {
   },
 
   async createPresentation(data: { title: string; template_id?: string }): Promise<Presentation> {
-    const response = await apiClient.post<ApiResponse<Presentation>>('/ppt', data)
-    return response.data.data!
+    const response = await apiClient.post<ApiResponse<Presentation> | Presentation>('/ppt', data)
+    const payload = response.data
+    const pptData = 'id' in payload ? payload : payload.data
+    if (!pptData) {
+      throw new Error('创建 PPT 返回缺少数据')
+    }
+    return pptData
   },
 
   async updatePresentation(id: string, data: Partial<{ title: string; slides: Slide[]; status: string }>): Promise<Presentation> {

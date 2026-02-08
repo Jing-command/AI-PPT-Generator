@@ -8,10 +8,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.core.custom_types import GUID, JSONType
+from app.utils.datetime import utcnow_aware
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -35,12 +36,12 @@ class Presentation(Base):
     __tablename__ = "presentations"
     
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         primary_key=True,
         default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True
@@ -55,7 +56,7 @@ class Presentation(Base):
     
     # 幻灯片内容（JSONB 存储完整结构）
     slides: Mapped[list] = mapped_column(
-        JSONB,
+        JSONType(),
         nullable=False,
         default=list,
         comment="幻灯片数组，每个元素包含 type, content, layout, style"
@@ -75,7 +76,7 @@ class Presentation(Base):
         comment="生成时使用的提示词"
     )
     ai_parameters: Mapped[Optional[dict]] = mapped_column(
-        JSONB,
+        JSONType(),
         nullable=True,
         comment="AI 生成参数：model, temperature, max_tokens 等"
     )
@@ -89,13 +90,13 @@ class Presentation(Base):
     
     # 时间戳
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow
+        DateTime(timezone=True),
+        default=utcnow_aware
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        DateTime(timezone=True),
+        default=utcnow_aware,
+        onupdate=utcnow_aware
     )
     
     # 关联关系
@@ -120,18 +121,18 @@ class GenerationTask(Base):
     __tablename__ = "generation_tasks"
     
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         primary_key=True,
         default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
     ppt_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("presentations.id", ondelete="SET NULL"),
         nullable=True
     )
@@ -160,14 +161,14 @@ class GenerationTask(Base):
         comment="生成提示词"
     )
     parameters: Mapped[Optional[dict]] = mapped_column(
-        JSONB,
+        JSONType(),
         nullable=True,
         comment="生成参数"
     )
     
     # 结果
     result: Mapped[Optional[dict]] = mapped_column(
-        JSONB,
+        JSONType(),
         nullable=True,
         comment="生成结果：包含 ppt_id 和 slides"
     )
@@ -179,16 +180,16 @@ class GenerationTask(Base):
     
     # 时间戳
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow
+        DateTime(timezone=True),
+        default=utcnow_aware
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        DateTime(timezone=True),
+        default=utcnow_aware,
+        onupdate=utcnow_aware
     )
     completed_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True
     )
     

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TemplateTheme(BaseModel):
@@ -41,8 +41,7 @@ class TemplateResponse(BaseModel):
     usage_count: int
     is_premium: bool
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TemplateDetailResponse(TemplateResponse):

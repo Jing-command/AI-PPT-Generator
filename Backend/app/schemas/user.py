@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 # ==================== 用户相关 ====================
@@ -17,8 +17,7 @@ class UserBase(BaseModel):
     email: EmailStr = Field(..., description="用户邮箱")
     name: Optional[str] = Field(None, max_length=100, description="用户名")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserCreate(UserBase):
@@ -29,15 +28,23 @@ class UserCreate(UserBase):
         max_length=100,
         description="密码，至少8位"
     )
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_length(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("密码不能超过 72 个字节（约 72 个 ASCII 字符）")
+        return value
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "email": "user@example.com",
                 "password": "securepassword123",
                 "name": "张三"
             }
         }
+    )
 
 
 class UserResponse(UserBase):
@@ -47,8 +54,7 @@ class UserResponse(UserBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==================== 认证相关 ====================
@@ -66,13 +72,14 @@ class LoginRequest(BaseModel):
     email: EmailStr = Field(..., description="用户邮箱")
     password: str = Field(..., description="密码")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "email": "user@example.com",
                 "password": "securepassword123"
             }
         }
+    )
 
 
 class RefreshTokenRequest(BaseModel):

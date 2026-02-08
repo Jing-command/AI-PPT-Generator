@@ -3,7 +3,8 @@
 包含密码加密、JWT 处理等
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import logging
 from typing import Optional, Tuple
 
 try:
@@ -23,7 +24,17 @@ except ImportError:
 from app.config import settings
 
 # 密码加密上下文
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__truncate_error=False
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _password_byte_len(password: str) -> int:
+    return len(password.encode("utf-8"))
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -37,10 +48,15 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         是否匹配
     """
-    # 确保密码是字节串，并限制在72字节内（bcrypt限制）
-    if isinstance(plain_password, str):
-        plain_password = plain_password.encode('utf-8')[:72].decode('utf-8')
-    return pwd_context.verify(plain_password, hashed_password)
+    byte_len = _password_byte_len(plain_password)
+    if byte_len > 72:
+        return False
+
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except ValueError:
+        logger.exception("Password verify failed: byte_len=%s", byte_len)
+        return False
 
 
 def get_password_hash(password: str) -> str:
@@ -53,10 +69,15 @@ def get_password_hash(password: str) -> str:
     Returns:
         bcrypt 哈希值
     """
-    # 确保密码是字节串，并限制在72字节内（bcrypt限制）
-    if isinstance(password, str):
-        password = password.encode('utf-8')[:72].decode('utf-8')
-    return pwd_context.hash(password)
+    byte_len = _password_byte_len(password)
+    if byte_len > 72:
+        raise ValueError("password too long")
+
+    try:
+        return pwd_context.hash(password)
+    except ValueError:
+        logger.exception("Password hash failed: byte_len=%s", byte_len)
+        raise
 
 
 def create_access_token(
@@ -74,9 +95,9 @@ def create_access_token(
         JWT 字符串
     """
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
+        expire = datetime.now(timezone.utc) + timedelta(
             minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
         )
     
@@ -84,7 +105,7 @@ def create_access_token(
         "sub": str(user_id),
         "exp": expire,
         "type": "access",
-        "iat": datetime.utcnow()
+        "iat": datetime.now(timezone.utc)
     }
     
     encoded_jwt = jwt.encode(
@@ -105,7 +126,7 @@ def create_refresh_token(user_id: str) -> str:
     Returns:
         JWT 字符串
     """
-    expire = datetime.utcnow() + timedelta(
+    expire = datetime.now(timezone.utc) + timedelta(
         days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS
     )
     
@@ -113,7 +134,7 @@ def create_refresh_token(user_id: str) -> str:
         "sub": str(user_id),
         "exp": expire,
         "type": "refresh",
-        "iat": datetime.utcnow()
+        "iat": datetime.now(timezone.utc)
     }
     
     encoded_jwt = jwt.encode(

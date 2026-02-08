@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class APIKeyBase(BaseModel):
@@ -29,8 +29,8 @@ class APIKeyCreate(APIKeyBase):
     api_key: str = Field(..., min_length=10, description="API Key 值")
     is_default: bool = Field(False, description="是否设为默认")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "provider": "openai",
                 "api_key": "sk-xxxxxxxxxxxxxxxxxxxxxxxx",
@@ -38,6 +38,7 @@ class APIKeyCreate(APIKeyBase):
                 "is_default": True
             }
         }
+    )
 
 
 class APIKeyUpdate(BaseModel):
@@ -57,8 +58,7 @@ class APIKeyResponse(BaseModel):
     last_verified_at: Optional[datetime]
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class APIKeyVerifyResponse(BaseModel):

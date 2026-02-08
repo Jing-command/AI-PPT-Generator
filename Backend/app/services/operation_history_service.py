@@ -11,6 +11,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.operation_history import OperationHistory
+from app.utils.datetime import utcnow_aware
 from app.models.presentation import Presentation
 
 
@@ -143,7 +144,7 @@ class OperationHistoryService:
         
         # 标记为已撤销
         operation.is_undone = True
-        operation.undone_at = datetime.utcnow()
+        operation.undone_at = utcnow_aware()
         
         # 恢复 PPT 状态
         if operation.before_state:

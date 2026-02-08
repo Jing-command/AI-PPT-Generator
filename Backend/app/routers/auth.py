@@ -17,7 +17,7 @@ from app.schemas.user import (
     UserCreate,
     UserResponse,
 )
-from app.services.user_service import get_user_service
+from app.services.user_service import EmailExistsError, PasswordHashError, get_user_service
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 security = HTTPBearer()
@@ -55,11 +55,19 @@ async def register(
     try:
         user = await service.create(user_data)
         return user
-    except ValueError as e:
+    except EmailExistsError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "code": "EMAIL_EXISTS",
+                "message": str(e)
+            }
+        )
+    except PasswordHashError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "INVALID_PASSWORD",
                 "message": str(e)
             }
         )

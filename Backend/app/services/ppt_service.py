@@ -246,10 +246,9 @@ class PPTService:
                     original[key] = value
             return original
         
-        ppt.slides[slide_index] = deep_merge(
-            ppt.slides[slide_index],
-            update_data
-        )
+        slides = list(ppt.slides)
+        slides[slide_index] = deep_merge(slides[slide_index], update_data)
+        ppt.slides = slides
         
         # 版本号 +1
         ppt.version += 1
@@ -287,11 +286,15 @@ class PPTService:
             import uuid
             slide['id'] = str(uuid.uuid4())
         
+        slides = list(ppt.slides)
+
         # 插入到指定位置
-        if position is None or position >= len(ppt.slides):
-            ppt.slides.append(slide)
+        if position is None or position >= len(slides):
+            slides.append(slide)
         else:
-            ppt.slides.insert(position, slide)
+            slides.insert(position, slide)
+
+        ppt.slides = slides
         
         ppt.version += 1
         

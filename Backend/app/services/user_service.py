@@ -14,6 +14,14 @@ from app.models.user import User
 from app.schemas.user import UserCreate
 
 
+class EmailExistsError(ValueError):
+    """Raised when the email is already registered."""
+
+
+class PasswordHashError(ValueError):
+    """Raised when password hashing fails due to invalid input."""
+
+
 class UserService:
     """
     用户服务类
@@ -69,12 +77,17 @@ class UserService:
         # 检查邮箱是否已存在
         existing = await self.get_by_email(user_data.email)
         if existing:
-            raise ValueError(f"邮箱 {user_data.email} 已被注册")
+            raise EmailExistsError(f"邮箱 {user_data.email} 已被注册")
         
         # 创建用户
+        try:
+            password_hash = get_password_hash(user_data.password)
+        except ValueError as exc:
+            raise PasswordHashError("密码格式不合法") from exc
+
         db_user = User(
             email=user_data.email,
-            password_hash=get_password_hash(user_data.password),
+            password_hash=password_hash,
             name=user_data.name
         )
         

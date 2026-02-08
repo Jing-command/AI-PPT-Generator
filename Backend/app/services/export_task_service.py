@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.export_task import ExportTask
+from app.utils.datetime import utcnow_aware
 from app.models.presentation import Presentation
 from app.services.export_service import get_export_service
 
@@ -116,8 +117,8 @@ class ExportTaskService:
             task.status = "completed"
             task.file_path = file_path
             task.file_size = Path(file_path).stat().st_size if file_path else 0
-            task.completed_at = datetime.utcnow()
-            task.expires_at = datetime.utcnow() + timedelta(days=1)
+            task.completed_at = utcnow_aware()
+            task.expires_at = utcnow_aware() + timedelta(days=1)
             
         except Exception as e:
             task.status = "failed"

@@ -16,8 +16,12 @@ export const authService = {
    * 用户登录
    */
   async login(data: LoginRequest): Promise<Token> {
-    const response = await apiClient.post<ApiResponse<Token>>('/auth/login', data)
-    const tokenData = response.data.data
+    const response = await apiClient.post<ApiResponse<Token> | Token>('/auth/login', data)
+    const payload = response.data
+    const tokenData = 'access_token' in payload ? payload : payload.data
+    if (!tokenData) {
+      throw new Error('登录返回缺少 Token 数据')
+    }
     
     // 保存 Token
     if (tokenData) {
@@ -25,31 +29,40 @@ export const authService = {
       localStorage.setItem('refresh_token', tokenData.refresh_token)
     }
     
-    return tokenData!
+    return tokenData
   },
 
   /**
    * 用户注册
    */
   async register(data: RegisterRequest): Promise<User> {
-    const response = await apiClient.post<ApiResponse<User>>('/auth/register', data)
-    return response.data.data!
+    const response = await apiClient.post<ApiResponse<User> | User>('/auth/register', data)
+    const payload = response.data
+    const userData = 'id' in payload ? payload : payload.data
+    if (!userData) {
+      throw new Error('注册返回缺少用户数据')
+    }
+    return userData
   },
 
   /**
    * 刷新 Token
    */
   async refreshToken(refreshToken: string): Promise<Token> {
-    const response = await apiClient.post<ApiResponse<Token>>('/auth/refresh', {
+    const response = await apiClient.post<ApiResponse<Token> | Token>('/auth/refresh', {
       refresh_token: refreshToken,
     })
     
-    const tokenData = response.data.data
+    const payload = response.data
+    const tokenData = 'access_token' in payload ? payload : payload.data
+    if (!tokenData) {
+      throw new Error('刷新 Token 返回缺少数据')
+    }
     if (tokenData) {
       localStorage.setItem('access_token', tokenData.access_token)
     }
     
-    return tokenData!
+    return tokenData
   },
 
   /**
