@@ -1,78 +1,36 @@
-# AI PPT Generator - Frontend
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-基于 React + TypeScript + Tailwind CSS 的 AI PPT 生成器前端。
+## Getting Started
 
-## 🚀 功能特性
-
-- **用户认证**: JWT 登录/注册
-- **PPT 管理**: 创建、编辑、删除
-- **AI 生成**: 对话式生成 PPT
-- **单页编辑**: 独立幻灯片编辑
-- **撤销/重做**: 操作历史
-- **导出下载**: PPTX/PDF/图片
-- **模板系统**: 预设模板选择
-
-## 🛠 技术栈
-
-- **框架**: React 18 + TypeScript
-- **构建**: Vite
-- **样式**: Tailwind CSS
-- **状态**: Zustand
-- **路由**: React Router v6
-- **HTTP**: Axios
-- **UI 组件**: Headless UI
-- **图标**: Lucide React
-
-## 📦 快速开始
+First, run the development server:
 
 ```bash
-# 安装依赖
-npm install
-
-# 启动开发服务器
 npm run dev
-
-# 构建生产版本
-npm run build
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-## 🧪 测试
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```bash
-# 运行测试
-npm test
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-# 运行测试 (UI模式)
-npm run test:ui
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-# 生成覆盖率报告
-npm run test:coverage
-```
+## Learn More
 
-## 📁 项目结构
+To learn more about Next.js, take a look at the following resources:
 
-```
-src/
-├── components/          # UI 组件
-│   ├── common/         # 通用组件
-│   ├── auth/           # 认证相关
-│   ├── ppt/            # PPT 相关
-│   └── editor/         # 编辑器相关
-├── pages/              # 页面
-├── hooks/              # 自定义 Hooks
-├── stores/             # Zustand 状态
-├── services/           # API 服务
-├── utils/              # 工具函数
-├── types/              # TypeScript 类型
-└── App.tsx             # 应用入口
-```
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## 🔑 环境变量
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-```env
-VITE_API_BASE_URL=http://localhost:8000/api/v1
-```
+## Deploy on Vercel
 
-## 📄 许可证
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-MIT
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
