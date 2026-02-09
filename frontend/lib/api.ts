@@ -204,10 +204,48 @@ export const templateAPI = {
     }),
 };
 
+// ==================== API Key API ====================
+export const apiKeyAPI = {
+  // 获取 API Key 列表
+  list: () =>
+    fetchAPI<Array<any>>('/api-keys'),
+  
+  // 创建 API Key
+  create: (data: { name: string; provider: string; api_key: string }) =>
+    fetchAPI('/api-keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  
+  // 获取 API Key 详情
+  getById: (key_id: string) =>
+    fetchAPI(`/api-keys/${key_id}`),
+  
+  // 更新 API Key
+  update: (key_id: string, data: Partial<{ name: string; is_active: boolean; is_default: boolean }>) =>
+    fetchAPI(`/api-keys/${key_id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  
+  // 删除 API Key
+  delete: (key_id: string) =>
+    fetchAPI(`/api-keys/${key_id}`, {
+      method: 'DELETE',
+    }),
+  
+  // 验证 API Key
+  verify: (key_id: string) =>
+    fetchAPI<{ valid: boolean; provider: string; message: string }>(`/api-keys/${key_id}/verify`, {
+      method: 'POST',
+    }),
+};
+
 export default {
   auth: authAPI,
   ppt: pptAPI,
   generation: generationAPI,
   export: exportAPI,
   template: templateAPI,
+  apiKey: apiKeyAPI,
 };
