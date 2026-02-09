@@ -32,8 +32,11 @@ class UserCreate(UserBase):
     @field_validator("password")
     @classmethod
     def validate_password_length(cls, value: str) -> str:
-        if len(value.encode("utf-8")) > 72:
-            raise ValueError("密码不能超过 72 个字节（约 72 个 ASCII 字符）")
+        password_bytes = value.encode("utf-8")
+        if len(password_bytes) > 72:
+            raise ValueError("密码不能超过 72 个字节（bcrypt 限制）")
+        if len(value) < 8:
+            raise ValueError("密码至少需要 8 个字符")
         return value
     
     model_config = ConfigDict(

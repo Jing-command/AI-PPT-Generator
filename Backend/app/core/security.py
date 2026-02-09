@@ -15,26 +15,36 @@ except ImportError:
     )
 
 try:
-    from passlib.context import CryptContext
+    import bcrypt
 except ImportError:
     raise ImportError(
-        "passlib is not installed. Please install it using: pip install passlib[bcrypt]"
+        "bcrypt is not installed. Please install it using: pip install bcrypt"
     )
 
 from app.config import settings
 
-# 密码加密上下文
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto",
-    bcrypt__truncate_error=False
-)
-
 logger = logging.getLogger(__name__)
 
 
-def _password_byte_len(password: str) -> int:
-    return len(password.encode("utf-8"))
+def get_password_hash(password: str) -> str:
+    """
+    获取密码哈希
+    
+    Args:
+        password: 明文密码
+        
+    Returns:
+        bcrypt 哈希值
+        
+    Raises:
+        ValueError: 如果密码长度超过72字节
+    """
+    # 检查密码长度（bcrypt限制）
+    password_bytes = password.encode('utf-8')
+    if len(password_bytes) > 72:
+        raise ValueError("密码不能超过 72 个字节")
+    
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -48,36 +58,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         是否匹配
     """
-    byte_len = _password_byte_len(plain_password)
-    if byte_len > 72:
-        return False
-
     try:
-        return pwd_context.verify(plain_password, hashed_password)
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
     except ValueError:
-        logger.exception("Password verify failed: byte_len=%s", byte_len)
         return False
-
-
-def get_password_hash(password: str) -> str:
-    """
-    获取密码哈希
-    
-    Args:
-        password: 明文密码
-        
-    Returns:
-        bcrypt 哈希值
-    """
-    byte_len = _password_byte_len(password)
-    if byte_len > 72:
-        raise ValueError("password too long")
-
-    try:
-        return pwd_context.hash(password)
-    except ValueError:
-        logger.exception("Password hash failed: byte_len=%s", byte_len)
-        raise
 
 
 def create_access_token(
@@ -167,13 +151,19 @@ def decode_token(token: str, expected_type: str = "access") -> Tuple[Optional[st
         token_type: str = payload.get("type", "access")
         
         if user_id is None:
+            logger.warning("Token validation failed: missing user ID (sub)")
             return None, "Invalid token: missing user ID"
         
         # 验证 token 类型
         if token_type != expected_type:
+            logger.warning(f"Token type mismatch: expected {expected_type}, got {token_type}")
             return None, f"Invalid token type: expected {expected_type}, got {token_type}"
             
         return user_id, None
         
-    except JWTError:
+    except jwt.ExpiredSignatureError:
+        logger.warning("Token validation failed: token expired")
+        return None, "Token expired"
+    except JWTError as e:
+        logger.warning(f"Token validation failed: {str(e)}")
         return None, "Invalid token"

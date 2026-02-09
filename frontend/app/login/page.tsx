@@ -9,7 +9,7 @@ import FloatingShapes from "@/components/FloatingShapes";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading: authLoading } = useAuth();
+  const { login, register, isLoading: authLoading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,12 +22,23 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
+    // 检查密码长度（字节）
+    const passwordBytes = new TextEncoder().encode(password).length;
+    if (passwordBytes > 72) {
+      setError("密码不能超过 72 个字节");
+      setIsLoading(false);
+      return;
+    }
+    if (password.length < 8) {
+      setError("密码至少需要 8 个字符");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       if (isLogin) {
         await login(email, password);
       } else {
-        const { login: loginFn } = await import("@/hooks/useAuth");
-        const { register } = useAuth();
         await register(email, password, username);
       }
       router.push("/dashboard");
@@ -117,6 +128,7 @@ export default function LoginPage() {
                 placeholder="密码"
                 required
                 minLength={8}
+                maxLength={64}
                 className="w-full px-4 py-3 pl-11 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-white/40 transition-colors"
               />
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />

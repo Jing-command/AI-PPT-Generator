@@ -3,6 +3,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { pptAPI } from '@/lib/api';
 
+interface Slide {
+  id: string;
+  type: string;
+  content: {
+    title?: string;
+    text?: string;
+    subtitle?: string;
+    bullets?: string[];
+    image_url?: string;
+  };
+  layout?: {
+    type: string;
+    background?: string;
+    theme?: string;
+  };
+}
+
 interface PPT {
   id: string;
   title: string;
@@ -11,6 +28,7 @@ interface PPT {
   created_at: string;
   updated_at: string;
   slide_count: number;
+  slides?: Slide[];
 }
 
 // PPT 列表 Hook
@@ -23,7 +41,7 @@ export function usePPTList() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await pptAPI.list({ limit: '50' });
+      const data = await pptAPI.list({ limit: 50 }) as PPT[];
       setPpts(data);
     } catch (err: any) {
       setError(err.message || '加载失败');
@@ -37,15 +55,22 @@ export function usePPTList() {
   }, [fetchPPTs]);
 
   const createPPT = useCallback(async (data: { title: string; description?: string }) => {
-    const newPPT = await pptAPI.create(data);
+    const newPPT = await pptAPI.create(data) as PPT;
     setPpts((prev) => [newPPT, ...prev]);
     return newPPT;
   }, []);
 
   const deletePPT = useCallback(async (id: string) => {
-    await pptAPI.delete(id);
-    setPpts((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+    try {
+      await pptAPI.delete(id);
+      // 乐观更新：立即从列表中移除
+      setPpts((prev) => prev.filter((p) => p.id !== id));
+    } catch (err: any) {
+      // 删除失败时重新获取列表，确保状态同步
+      await fetchPPTs();
+      throw err;
+    }
+  }, [fetchPPTs]);
 
   return {
     ppts,
@@ -70,7 +95,7 @@ export function usePPTDetail(pptId: string | null) {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await pptAPI.getById(pptId);
+        const data = await pptAPI.getById(pptId) as PPT;
         setPpt(data);
       } catch (err: any) {
         setError(err.message || '加载失败');
@@ -84,7 +109,7 @@ export function usePPTDetail(pptId: string | null) {
 
   const updatePPT = useCallback(async (data: Partial<{ title: string; description: string }>) => {
     if (!pptId) return;
-    const updated = await pptAPI.update(pptId, data);
+    const updated = await pptAPI.update(pptId, data) as PPT;
     setPpt(updated);
     return updated;
   }, [pptId]);
@@ -94,6 +119,6 @@ export function usePPTDetail(pptId: string | null) {
     isLoading,
     error,
     updatePPT,
-    refetch: () => pptId && pptAPI.getById(pptId).then(setPpt),
+    refetch: () => pptId && pptAPI.getById(pptId).then(data => setPpt(data as PPT)),
   };
 }

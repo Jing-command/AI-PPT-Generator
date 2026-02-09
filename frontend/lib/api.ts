@@ -1,6 +1,16 @@
 // API 配置
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
+// 类型定义
+interface User {
+  id: string;
+  email: string;
+  username?: string;
+  name?: string;
+  avatar_url?: string;
+  created_at?: string;
+}
+
 // 获取 Token
 function getToken(): string | null {
   if (typeof window !== 'undefined') {
@@ -33,8 +43,28 @@ async function fetchAPI<T>(
   });
   
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: '请求失败' }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    const text = await response.text();
+    let error: any = { message: `HTTP ${response.status}` };
+    try {
+      error = JSON.parse(text);
+    } catch {
+      error = { message: text || `HTTP ${response.status}` };
+    }
+    // 处理后端返回的详细错误
+    let message = error.message || error.detail || `HTTP ${response.status}`;
+    if (error.detail && Array.isArray(error.detail)) {
+      message = error.detail.map((e: any) => e.msg || e.message).join(', ');
+    }
+    // 401 未授权是预期行为（用户未登录），不打印错误日志
+    if (response.status !== 401) {
+      console.error('API Error:', response.status, response.url, error);
+    }
+    throw new Error(message);
+  }
+  
+  // 204 No Content 响应没有响应体
+  if (response.status === 204) {
+    return null;
   }
   
   return response.json();
@@ -105,14 +135,14 @@ export const pptAPI = {
     fetchAPI(`/ppt/${ppt_id}/slides/${slide_id}`),
   
   // 更新单页幻灯片
-  updateSlide: (ppt_id: string, slide_id: string, data: Partial<{ title: string; content: any; layout: string; notes: string }>) =>
+  updateSlide: (ppt_id: string, slide_id: string, data: Partial<{ type: string; content: any; layout: { type: string; theme?: string | null; background?: string | null }; notes: string }>) =>
     fetchAPI(`/ppt/${ppt_id}/slides/${slide_id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
   
   // 添加幻灯片
-  addSlide: (ppt_id: string, data: { title?: string; content?: any; layout?: string; position?: number }) =>
+  addSlide: (ppt_id: string, data: { type?: string; content?: any; layout?: { type: string }; position?: number }) =>
     fetchAPI(`/ppt/${ppt_id}/slides`, {
       method: 'POST',
       body: JSON.stringify(data),

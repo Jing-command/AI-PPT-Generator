@@ -37,13 +37,13 @@ export function useAPIKeys() {
   }, [fetchAPIKeys]);
 
   const createAPIKey = useCallback(async (data: { name: string; provider: string; api_key: string }) => {
-    const newKey = await apiKeyAPI.create(data);
+    const newKey = await apiKeyAPI.create(data) as APIKey;
     setApiKeys((prev) => [...prev, newKey]);
     return newKey;
   }, []);
 
   const updateAPIKey = useCallback(async (id: string, data: Partial<{ name: string; is_active: boolean; is_default: boolean }>) => {
-    const updated = await apiKeyAPI.update(id, data);
+    const updated = await apiKeyAPI.update(id, data) as APIKey;
     setApiKeys((prev) => prev.map((k) => (k.id === id ? updated : k)));
     return updated;
   }, []);

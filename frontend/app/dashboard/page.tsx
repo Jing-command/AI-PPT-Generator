@@ -10,39 +10,127 @@ import {
   Download, 
   Loader2,
   Wand2,
-  Layout
+  Layout,
+  Image
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePPTList } from "@/hooks/usePPT";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthGuard } from "@/components/AuthGuard";
 import Navbar from "@/components/Navbar";
 import FloatingShapes from "@/components/FloatingShapes";
 
+// PPT 缩略图组件 - 显示完整首页预览
+function PPTThumbnail({ slide }: { slide: any }) {
+  if (!slide) {
+    return (
+      <div className="aspect-video rounded-xl bg-gradient-to-br from-white/10 to-white/5 mb-4 flex items-center justify-center">
+        <Layout className="w-12 h-12 text-white/30" />
+      </div>
+    );
+  }
+
+  const content = slide.content || {};
+  const layoutType = slide.layout?.type || 'title-content';
+  const title = content.title || '无标题';
+  const text = content.text || '';
+  const secondColumn = content.second_column || '';
+  const subtitle = content.subtitle || '';
+
+  // 根据布局渲染不同的预览
+  switch (layoutType) {
+    case 'title':
+      return (
+        <div className="aspect-video rounded-xl bg-gradient-to-br from-white/10 to-white/5 mb-4 flex flex-col items-center justify-center p-4 overflow-hidden">
+          <p className="text-sm font-bold text-white/90 text-center line-clamp-2">{title}</p>
+          {subtitle && <p className="text-xs text-white/60 mt-1 line-clamp-1">{subtitle}</p>}
+        </div>
+      );
+
+    case 'two-column':
+      return (
+        <div className="aspect-video rounded-xl bg-gradient-to-br from-white/10 to-white/5 mb-4 flex flex-col p-3 overflow-hidden">
+          <p className="text-xs font-bold text-white/90 mb-1 line-clamp-1">{title}</p>
+          <div className="flex-1 flex gap-2 min-h-0">
+            <div className="flex-1 bg-white/5 rounded p-2 overflow-hidden">
+              <p className="text-[10px] text-white/70 line-clamp-4 leading-tight">{text || '...'}</p>
+            </div>
+            <div className="flex-1 bg-white/5 rounded p-2 overflow-hidden">
+              <p className="text-[10px] text-white/70 line-clamp-4 leading-tight">{secondColumn || '...'}</p>
+            </div>
+          </div>
+        </div>
+      );
+
+    case 'image-text':
+      return (
+        <div className="aspect-video rounded-xl bg-gradient-to-br from-white/10 to-white/5 mb-4 flex flex-col p-3 overflow-hidden">
+          <p className="text-xs font-bold text-white/90 mb-1 line-clamp-1">{title}</p>
+          <div className="flex-1 flex gap-2 min-h-0">
+            <div className="flex-1 bg-white/10 rounded flex items-center justify-center overflow-hidden">
+              {content.image_url ? (
+                <div className="w-full h-full bg-white/20" />
+              ) : (
+                <Image className="w-6 h-6 text-white/30" />
+              )}
+            </div>
+            <div className="flex-1 bg-white/5 rounded p-2 overflow-hidden">
+              <p className="text-[10px] text-white/70 line-clamp-4 leading-tight">{text || '...'}</p>
+            </div>
+          </div>
+        </div>
+      );
+
+    default: // title-content
+      return (
+        <div className="aspect-video rounded-xl bg-gradient-to-br from-white/10 to-white/5 mb-4 flex flex-col p-3 overflow-hidden">
+          <p className="text-xs font-bold text-white/90 mb-1 line-clamp-1">{title}</p>
+          <div className="flex-1 bg-white/5 rounded p-2 overflow-hidden">
+            <p className="text-[10px] text-white/70 line-clamp-5 leading-tight">{text || '...'}</p>
+          </div>
+        </div>
+      );
+  }
+}
+
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuthGuard(true);
   const { ppts, isLoading, createPPT, deletePPT } = usePPTList();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // 未登录跳转到登录页
-  if (!authLoading && !isAuthenticated) {
-    router.push("/login");
-    return null;
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-white/50" />
+      </div>
+    );
   }
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
     setIsCreating(true);
     try {
-      const ppt = await createPPT({ title: newTitle });
+      const ppt = await createPPT({ title: newTitle }) as { id: string };
       setShowCreateModal(false);
       setNewTitle("");
       router.push(`/editor/${ppt.id}`);
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await deletePPT(id);
+    } catch (err: any) {
+      alert('删除失败: ' + err.message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -111,8 +199,7 @@ export default function DashboardPage() {
                 animate={{ opacity: 1 }}
                 className="text-center py-20"
               >
-                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl glass flex items-center justify-center"
-003e
+                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl glass flex items-center justify-center">
                   <FileText className="w-10 h-10 text-white/50" />
                 </div>
                 <p className="text-white/70 text-lg mb-4">还没有 PPT</p>
@@ -127,7 +214,13 @@ export default function DashboardPage() {
               </motion.div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {ppts.map((ppt, index) => (
+                {ppts.map((ppt, index) => {
+                  // 计算页数：优先使用 slide_count，否则使用 slides 数组长度
+                  const slideCount = ppt.slide_count ?? (ppt.slides?.length || 0);
+                  // 获取首页
+                  const firstSlide = ppt.slides?.[0];
+                  
+                  return (
                   <motion.div
                     key={ppt.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -136,13 +229,12 @@ export default function DashboardPage() {
                     className="group glass-card rounded-2xl p-5 hover:bg-white/15 transition-all cursor-pointer"
                   >
                     <Link href={`/editor/${ppt.id}`}>
-                      <div className="aspect-video rounded-xl bg-gradient-to-br from-white/10 to-white/5 mb-4 flex items-center justify-center">
-                        <Layout className="w-12 h-12 text-white/30" />
-                      </div>
+                      {/* 缩略图 - 显示完整首页预览 */}
+                      <PPTThumbnail slide={firstSlide} />
                       
                       <h3 className="font-semibold text-lg mb-1 truncate">{ppt.title}</h3>
                       <p className="text-white/50 text-sm mb-3">
-                        {ppt.slide_count || 0} 页 · {new Date(ppt.updated_at).toLocaleDateString('zh-CN')}
+                        {slideCount} 页 · {new Date(ppt.updated_at).toLocaleDateString('zh-CN')}
                       </p>
                     </Link>
                     
@@ -164,15 +256,21 @@ export default function DashboardPage() {
                           <Download className="w-4 h-4 text-white/70" />
                         </button>
                         <button 
-                          onClick={() => deletePPT(ppt.id)}
-                          className="p-2 hover:bg-red-500/20 rounded-lg transition-colors group"
+                          onClick={() => handleDelete(ppt.id)}
+                          disabled={deletingId === ppt.id}
+                          className="p-2 hover:bg-red-500/20 rounded-lg transition-colors group disabled:opacity-50"
                         >
-                          <Trash2 className="w-4 h-4 text-white/70 group-hover:text-red-400" />
+                          {deletingId === ppt.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 text-white/70 group-hover:text-red-400" />
+                          )}
                         </button>
                       </div>
                     </div>
                   </motion.div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

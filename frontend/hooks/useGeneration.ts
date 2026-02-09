@@ -29,7 +29,7 @@ export function useGeneration() {
 
     const interval = setInterval(async () => {
       try {
-        const status = await generationAPI.getStatus(task.task_id);
+        const status = await generationAPI.getStatus(task.task_id) as GenerationTask;
         setTask(status);
         
         if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled') {
@@ -54,7 +54,7 @@ export function useGeneration() {
     setIsGenerating(true);
     setError(null);
     try {
-      const response = await generationAPI.generate(data);
+      const response = await generationAPI.generate(data) as GenerationTask;
       setTask(response);
       return response;
     } catch (err: any) {

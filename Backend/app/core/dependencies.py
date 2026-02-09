@@ -40,15 +40,20 @@ async def get_current_user(
     Raises:
         HTTPException: 401 如果 Token 无效或用户不存在
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     token = credentials.credentials
     user_id, error = decode_token(token, expected_type="access")
     
     if error:
+        logger.warning(f"Authentication failed: {error}")
+        code = "TOKEN_EXPIRED" if error == "Token expired" else "INVALID_TOKEN"
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
-                "code": "INVALID_TOKEN",
-                "message": "无效的认证令牌",
+                "code": code,
+                "message": "无效的认证令牌" if code == "INVALID_TOKEN" else "登录已过期，请重新登录",
                 "details": {"error": error}
             },
             headers={"WWW-Authenticate": "Bearer"}
@@ -60,6 +65,7 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     
     if not user:
+        logger.warning(f"Authentication failed: user {user_id} not found")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -70,6 +76,7 @@ async def get_current_user(
         )
     
     if not user.is_active:
+        logger.warning(f"Authentication failed: user {user_id} is inactive")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

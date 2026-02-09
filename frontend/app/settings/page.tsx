@@ -5,6 +5,7 @@ import { Key, User, Bell, Shield } from "lucide-react";
 import { useState } from "react";
 import FloatingShapes from "@/components/FloatingShapes";
 import Navbar from "@/components/Navbar";
+import { useAuthGuard } from "@/components/AuthGuard";
 import APIKeySettings from "./components/APIKeySettings";
 import ProfileSettings from "./components/ProfileSettings";
 import SecuritySettings from "./components/SecuritySettings";
@@ -17,6 +18,7 @@ const TABS = [
 ];
 
 export default function SettingsPage() {
+  const { isLoading: authLoading } = useAuthGuard(true);
   const [activeTab, setActiveTab] = useState("api-keys");
 
   return (
@@ -37,7 +39,6 @@ export default function SettingsPage() {
 
         <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto">
-            <!-- 页面标题 -->
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -48,7 +49,6 @@ export default function SettingsPage() {
             </motion.div>
 
             <div className="flex flex-col lg:flex-row gap-6">
-              <!-- 侧边栏 -->
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -75,7 +75,6 @@ export default function SettingsPage() {
                 </div>
               </motion.div>
 
-              <!-- 内容区 -->
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

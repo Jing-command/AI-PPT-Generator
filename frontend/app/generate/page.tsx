@@ -6,11 +6,13 @@ import { Wand2, Loader2, Sparkles, Check, ArrowRight, FileText } from "lucide-re
 import { useRouter } from "next/navigation";
 import { useGeneration } from "@/hooks/useGeneration";
 import { useTemplates } from "@/hooks/useTemplates";
+import { useAuthGuard } from "@/components/AuthGuard";
 import Navbar from "@/components/Navbar";
 import FloatingShapes from "@/components/FloatingShapes";
 
 export default function GeneratePage() {
   const router = useRouter();
+  const { isLoading: authLoading } = useAuthGuard(true);
   const { generate, cancel, task, isGenerating, error } = useGeneration();
   const { templates, categories, isLoading: templatesLoading } = useTemplates();
   
@@ -37,7 +39,7 @@ export default function GeneratePage() {
   // 生成完成后跳转到编辑器
   if (task?.status === 'completed' && task.result?.ppt_id) {
     setTimeout(() => {
-      router.push(`/editor/${task.result.ppt_id}`);
+      router.push(`/editor/${task.result!.ppt_id}`);
     }, 1500);
   }
 
@@ -247,7 +249,7 @@ export default function GeneratePage() {
                   
                   {task.status === 'completed' && task.result && (
                     <button
-                      onClick={() => router.push(`/editor/${task.result.ppt_id}`)}
+                      onClick={() => router.push(`/editor/${task.result!.ppt_id}`)}
                       className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white text-purple-600 text-sm font-medium"
                     >
                       编辑

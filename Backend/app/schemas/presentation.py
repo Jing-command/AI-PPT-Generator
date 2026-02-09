@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 # ==================== Slide 模型 ====================
@@ -16,6 +16,7 @@ class SlideContent(BaseModel):
     title: Optional[str] = None
     subtitle: Optional[str] = None
     text: Optional[str] = None
+    second_column: Optional[str] = None
     bullets: Optional[List[str]] = None
     image_url: Optional[str] = None
     chart_data: Optional[Dict[str, Any]] = None
@@ -55,12 +56,14 @@ class PresentationBase(BaseModel):
 
 class PresentationCreate(PresentationBase):
     """创建 PPT 请求"""
+    description: Optional[str] = Field(None, max_length=1000, description="PPT 描述")
     template_id: Optional[str] = None
     
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "title": "AI 产品介绍",
+                "description": "这是一个关于 AI 产品的介绍 PPT",
                 "template_id": "business-modern"
             }
         }
@@ -79,12 +82,24 @@ class PresentationResponse(PresentationBase):
     id: UUID
     user_id: UUID
     slides: List[Slide]
+    slide_count: int = Field(default=0, description="幻灯片数量")
     status: str
     version: int
     created_at: datetime
     updated_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+    
+    @model_validator(mode='before')
+    @classmethod
+    def calculate_slide_count(cls, data: any) -> any:
+        """自动计算 slide_count"""
+        if hasattr(data, 'slides'):
+            slides = data.slides
+            if isinstance(slides, list):
+                data = dict(data.__dict__) if hasattr(data, '__dict__') else dict(data)
+                data['slide_count'] = len(slides)
+        return data
 
 
 class PresentationDetailResponse(PresentationResponse):

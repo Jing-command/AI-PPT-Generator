@@ -40,13 +40,13 @@ async def lifespan(app: FastAPI):
     """
     # 启动
     await init_db()
-    print(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} 启动成功")
+    print(f"[START] {settings.APP_NAME} v{settings.APP_VERSION} started successfully")
     
     yield
     
     # 关闭
     await close_db()
-    print("👋 应用已关闭")
+    print("[STOP] Application stopped")
 
 
 # 创建 FastAPI 应用
@@ -149,12 +149,18 @@ app.include_router(api_router)
 
 
 if __name__ == "__main__":
+    import sys
     import uvicorn
+    
+    # Windows 平台强制使用单进程模式
+    is_windows = sys.platform.startswith("win")
+    workers = 1 if (settings.DEBUG or is_windows) else 4
     
     uvicorn.run(
         "app.main:app",
         host=settings.HOST,
         port=settings.PORT,
         reload=settings.DEBUG,
-        workers=1 if settings.DEBUG else 4
+        workers=workers,
+        loop="asyncio" if is_windows else "auto"
     )

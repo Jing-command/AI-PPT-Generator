@@ -46,6 +46,7 @@ class PPTService:
         ppt = Presentation(
             user_id=user_id,
             title=data.title,
+            description=getattr(data, 'description', None),
             slides=slides or [],
             status="draft",
             version=1
@@ -209,16 +210,8 @@ class PPTService:
     ) -> Optional[dict]:
         """
         更新单页幻灯片（部分更新）
-        
-        Args:
-            ppt_id: PPT ID
-            slide_id: 幻灯片 ID
-            user_id: 用户 ID
-            data: 更新数据
-            
-        Returns:
-            更新后的幻灯片
         """
+        print(f"[SERVICE] update_slide called: ppt_id={ppt_id}, slide_id={slide_id}", flush=True)
         ppt = await self.get_by_id(ppt_id, user_id)
         if not ppt:
             return None
@@ -234,21 +227,25 @@ class PPTService:
             return None
         
         # 部分更新
-        update_data = data.model_dump(exclude_unset=True, exclude_none=True)
+        update_data = data.model_dump(exclude_unset=True, exclude_none=True, mode='json')
         
-        # 深度合并
+        # 深度合并（创建新对象，不修改原对象）
+        import copy
         def deep_merge(original: dict, update: dict) -> dict:
-            """深度合并字典"""
+            """深度合并字典，返回新对象"""
+            result = copy.deepcopy(original)
             for key, value in update.items():
-                if isinstance(value, dict) and key in original:
-                    original[key] = deep_merge(original[key], value)
+                if isinstance(value, dict) and key in result and isinstance(result[key], dict):
+                    result[key] = deep_merge(result[key], value)
                 else:
-                    original[key] = value
-            return original
+                    result[key] = value
+            return result
         
-        slides = list(ppt.slides)
-        slides[slide_index] = deep_merge(slides[slide_index], update_data)
-        ppt.slides = slides
+        # 创建全新的 slides 列表
+        slides = copy.deepcopy(list(ppt.slides))
+        updated_slide = deep_merge(slides[slide_index], update_data)
+        slides[slide_index] = updated_slide
+        ppt.slides = slides  # 赋值新列表，触发 SQLAlchemy 变更检测
         
         # 版本号 +1
         ppt.version += 1
@@ -256,7 +253,8 @@ class PPTService:
         await self.db.commit()
         await self.db.refresh(ppt)
         
-        return ppt.slides[slide_index]
+        # 直接返回更新后的数据
+        return updated_slide
     
     async def add_slide(
         self,

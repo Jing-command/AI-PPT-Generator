@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { usePPTDetail } from "@/hooks/usePPT";
 import { useExport } from "@/hooks/useExport";
+import { useAuthGuard } from "@/components/AuthGuard";
 import FloatingShapes from "@/components/FloatingShapes";
 
 const EXPORT_OPTIONS = [
@@ -65,6 +66,7 @@ export default function ExportPage() {
   const params = useParams();
   const pptId = params.id as string;
   
+  const { isLoading: authLoading } = useAuthGuard(true);
   const { ppt, isLoading: pptLoading } = usePPTDetail(pptId);
   const { exportTask, isExporting, error, progress, startExport, downloadFile } = useExport(pptId);
   
@@ -131,7 +133,6 @@ export default function ExportPage() {
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-2xl glass rounded-3xl p-6 sm:p-8"
           >
-            <!-- 标题 -->
             <div className="text-center mb-8">
               <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${selectedOption?.color} flex items-center justify-center`}>
                 {selectedOption && <selectedOption.icon className="w-8 h-8 text-white" />}

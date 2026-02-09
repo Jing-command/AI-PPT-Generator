@@ -34,19 +34,19 @@ export function useAuth() {
       }
 
       try {
-        const user = await authAPI.getCurrentUser();
+        const user = await authAPI.getCurrentUser() as User;
         setState({ user, isLoading: false, isAuthenticated: true });
-      } catch (error) {
-        // Token 无效，尝试刷新
+      } catch (error: any) {
+        // Token 无效或过期，尝试刷新
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
           try {
             const tokens = await authAPI.refresh(refreshToken);
             localStorage.setItem('access_token', tokens.access_token);
             localStorage.setItem('refresh_token', tokens.refresh_token);
-            const user = await authAPI.getCurrentUser();
+            const user = await authAPI.getCurrentUser() as User;
             setState({ user, isLoading: false, isAuthenticated: true });
-          } catch {
+          } catch (refreshError) {
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             setState({ user: null, isLoading: false, isAuthenticated: false });
@@ -66,7 +66,7 @@ export function useAuth() {
     const tokens = await authAPI.login({ email, password });
     localStorage.setItem('access_token', tokens.access_token);
     localStorage.setItem('refresh_token', tokens.refresh_token);
-    const user = await authAPI.getCurrentUser();
+    const user = await authAPI.getCurrentUser() as User;
     setState({ user, isLoading: false, isAuthenticated: true });
     return user;
   }, []);

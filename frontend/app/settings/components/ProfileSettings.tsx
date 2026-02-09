@@ -16,7 +16,7 @@ interface User {
   id: string;
   email: string;
   name?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 export default function ProfileSettings() {
@@ -184,7 +184,7 @@ export default function ProfileSettings() {
           <h3 className="text-sm font-medium text-white/60 mb-4">账户信息</h3>
           <div className="space-y-2 text-sm">
             <p className="text-white/50">
-              注册时间: {new Date(user.created_at).toLocaleDateString('zh-CN')}
+              注册时间: {user.created_at ? new Date(user.created_at).toLocaleDateString('zh-CN') : '未知'}
             </p>
             <p className="text-white/50">
               用户 ID: {user.id}

@@ -53,6 +53,11 @@ class Presentation(Base):
         nullable=False,
         default="未命名演示文稿"
     )
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="PPT 描述/说明"
+    )
     
     # 幻灯片内容（JSONB 存储完整结构）
     slides: Mapped[list] = mapped_column(

@@ -24,7 +24,7 @@ export function useExport(pptId: string | null) {
     const interval = setInterval(async () => {
       try {
         if (!pptId || !exportTask) return;
-        const status = await exportAPI.getStatus(pptId, exportTask.export_task_id);
+        const status = await exportAPI.getStatus(pptId, exportTask.export_task_id) as typeof exportTask;
         setExportTask(status);
         
         // 模拟进度
@@ -54,7 +54,7 @@ export function useExport(pptId: string | null) {
     setProgress(0);
     
     try {
-      const response = await exportAPI.export(pptId, { format, quality });
+      const response = await exportAPI.export(pptId, { format, quality }) as typeof exportTask;
       setExportTask(response);
       return response;
     } catch (err: any) {

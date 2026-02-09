@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 
 interface FeatureCardProps {
   icon: ReactNode;
@@ -11,16 +11,19 @@ interface FeatureCardProps {
 }
 
 export default function FeatureCard({ icon, title, subtitle, delay = 0 }: FeatureCardProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.9 + delay, duration: 0.5 }}
-      whileHover={{ y: -8, scale: 1.02 }}
-      className="group glass-card rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:bg-white/15 hover:shadow-2xl hover:shadow-purple-900/20"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="group glass-card rounded-2xl p-6 transition-all duration-300 hover:bg-white/15 hover:shadow-2xl hover:shadow-purple-900/20"
     >
       <motion.div
-        whileHover={{ rotate: [0, -10, 10, 0] }}
+        animate={isHovered ? { rotate: [0, -10, 10, 0] } : { rotate: 0 }}
         transition={{ duration: 0.5 }}
         className="mb-4"
       >

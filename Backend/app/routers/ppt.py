@@ -185,32 +185,53 @@ async def update_slide(
     db = Depends(get_db)
 ):
     """更新单页幻灯片（增量更新）"""
-    service = get_ppt_service(db)
-    history_service = get_operation_history_service(db)
+    # 强制打印到标准输出
+    import sys
+    print("="*50, flush=True)
+    print(f"[UPDATE_SLIDE] Called with ppt_id={ppt_id}, slide_id={slide_id}", flush=True)
+    print(f"[UPDATE_SLIDE] data={data}", flush=True)
+    sys.stdout.flush()
     
-    # 获取原状态
-    old_slide = await service.get_slide(ppt_id, slide_id, current_user.id)
-    if not old_slide:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "NOT_FOUND", "message": "幻灯片不存在"}
+    import traceback
+    try:
+        service = get_ppt_service(db)
+        history_service = get_operation_history_service(db)
+        
+        # 获取原状态
+        old_slide = await service.get_slide(ppt_id, slide_id, current_user.id)
+        if not old_slide:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "NOT_FOUND", "message": "幻灯片不存在"}
+            )
+        
+        # 更新
+        slide = await service.update_slide(ppt_id, slide_id, current_user.id, data)
+        
+        # 记录操作历史
+        await history_service.record_operation(
+            user_id=current_user.id,
+            ppt_id=ppt_id,
+            operation_type="edit_slide",
+            slide_id=slide_id,
+            description=f"编辑第 {slide_id} 页",
+            before_state=old_slide,
+            after_state=slide
         )
-    
-    # 更新
-    slide = await service.update_slide(ppt_id, slide_id, current_user.id, data)
-    
-    # 记录操作历史
-    await history_service.record_operation(
-        user_id=current_user.id,
-        ppt_id=ppt_id,
-        operation_type="edit_slide",
-        slide_id=slide_id,
-        description=f"编辑第 {slide_id} 页",
-        before_state=old_slide,
-        after_state=slide
-    )
-    
-    return slide
+        
+        return slide
+    except Exception as e:
+        error_msg = f"[ERROR] Update slide failed: {e}"
+        print(error_msg)
+        traceback.print_exc()
+        # 同时写入文件
+        with open('error.log', 'a', encoding='utf-8') as f:
+            f.write(f"{error_msg}\n")
+            f.write(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "UPDATE_FAILED", "message": str(e)}
+        )
 
 
 @router.post(
@@ -227,7 +248,7 @@ async def add_slide(
     service = get_ppt_service(db)
     history_service = get_operation_history_service(db)
     
-    slide_dict = data.model_dump()
+    slide_dict = data.model_dump(mode='json')
     
     ppt = await service.add_slide(
         ppt_id, current_user.id, slide_dict, data.position

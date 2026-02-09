@@ -7,7 +7,7 @@ interface Slide {
   id: string;
   title: string;
   content: any;
-  layout: string;
+  layout: { type: string; theme?: string | null; background?: string | null };
   notes?: string;
 }
 
@@ -25,9 +25,9 @@ export function useSlides(pptId: string | null) {
     if (!pptId) return;
     setIsLoading(true);
     try {
-      const ppt = await pptAPI.getById(pptId);
+      const ppt = await pptAPI.getById(pptId) as { slides?: Slide[] };
       setSlides(ppt.slides || []);
-      if (ppt.slides?.length > 0) {
+      if (ppt.slides && ppt.slides.length > 0) {
         setCurrentSlide(ppt.slides[0]);
       }
     } catch (err: any) {
@@ -39,20 +39,27 @@ export function useSlides(pptId: string | null) {
 
   // 选择幻灯片
   const selectSlide = useCallback((slideId: string) => {
-    const slide = slides.find(s => s.id === slideId);
-    if (slide) {
-      setCurrentSlide(slide);
-    }
+    setCurrentSlide(prev => {
+      const slide = slides.find(s => s.id === slideId);
+      return slide || prev;
+    });
   }, [slides]);
 
   // 添加幻灯片
   const addSlide = useCallback(async (position?: number) => {
     if (!pptId) return;
     const newSlide = await pptAPI.addSlide(pptId, {
-      title: "新页面",
-      layout: "title-content",
+      type: "content",
+      content: {
+        title: "新页面",
+        text: "",
+        bullets: []
+      },
+      layout: {
+        type: "title-content"
+      },
       position,
-    });
+    }) as Slide;
     await loadSlides();
     return newSlide;
   }, [pptId, loadSlides]);
@@ -60,13 +67,26 @@ export function useSlides(pptId: string | null) {
   // 更新幻灯片
   const updateSlide = useCallback(async (slideId: string, data: Partial<Slide>) => {
     if (!pptId) return;
-    const updated = await pptAPI.updateSlide(pptId, slideId, data);
-    setSlides(prev => prev.map(s => s.id === slideId ? { ...s, ...updated } : s));
-    if (currentSlide?.id === slideId) {
-      setCurrentSlide({ ...currentSlide, ...updated });
+    setIsLoading(true);
+    setError(null);
+    try {
+      const updated = await pptAPI.updateSlide(pptId, slideId, data) as Slide;
+      setSlides(prev => prev.map(s => s.id === slideId ? { ...s, ...updated } : s));
+      setCurrentSlide(prev => {
+        if (prev?.id === slideId) {
+          return { ...prev, ...updated };
+        }
+        return prev;
+      });
+      return updated;
+    } catch (err: any) {
+      console.error('Update slide error:', err);
+      setError(err.message || '更新失败');
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
-    return updated;
-  }, [pptId, currentSlide]);
+  }, [pptId]);
 
   // 删除幻灯片
   const deleteSlide = useCallback(async (slideId: string) => {
@@ -84,7 +104,7 @@ export function useSlides(pptId: string | null) {
   // 撤销
   const undo = useCallback(async () => {
     if (!pptId) return;
-    const result = await pptAPI.undo(pptId);
+    const result = await pptAPI.undo(pptId) as { success: boolean };
     if (result.success) {
       await loadSlides();
       setCanUndo(false);
@@ -94,7 +114,7 @@ export function useSlides(pptId: string | null) {
   // 重做
   const redo = useCallback(async () => {
     if (!pptId) return;
-    const result = await pptAPI.redo(pptId);
+    const result = await pptAPI.redo(pptId) as { success: boolean };
     if (result.success) {
       await loadSlides();
       setCanRedo(false);

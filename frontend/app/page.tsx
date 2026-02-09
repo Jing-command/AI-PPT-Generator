@@ -264,7 +264,7 @@ export default function Home() {
         {/* Footer */}
         <footer className="py-8 px-4 border-t border-white/10">
           <div className="max-w-6xl mx-auto text-center text-white/50 text-sm">
-            <p>© 2024 AI Slides. 让每一次演讲都精彩。</p>
+            <p>© 2026 AI Slides. 让每一次演讲都精彩。</p>
           </div>
         </footer>
       </div>
