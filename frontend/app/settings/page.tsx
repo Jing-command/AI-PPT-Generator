@@ -6,6 +6,8 @@ import { useState } from "react";
 import FloatingShapes from "@/components/FloatingShapes";
 import Navbar from "@/components/Navbar";
 import APIKeySettings from "./components/APIKeySettings";
+import ProfileSettings from "./components/ProfileSettings";
+import SecuritySettings from "./components/SecuritySettings";
 
 const TABS = [
   { id: "api-keys", name: "API Keys", icon: Key },
@@ -82,21 +84,13 @@ export default function SettingsPage() {
               >
                 <div className="glass rounded-2xl p-6">
                   {activeTab === "api-keys" && <APIKeySettings />}
-                  {activeTab === "profile" && (
-                    <div className="text-center py-12 text-white/60">
-                      个人资料设置即将推出...
-                    </div>
-                  )}
+                  {activeTab === "profile" && <ProfileSettings />}
                   {activeTab === "notifications" && (
                     <div className="text-center py-12 text-white/60">
                       通知设置即将推出...
                     </div>
                   )}
-                  {activeTab === "security" && (
-                    <div className="text-center py-12 text-white/60">
-                      安全设置即将推出...
-                    </div>
-                  )}
+                  {activeTab === "security" && <SecuritySettings />}
                 </div>
               </motion.div>
             </div>

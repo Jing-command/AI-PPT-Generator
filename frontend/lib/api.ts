@@ -241,8 +241,36 @@ export const apiKeyAPI = {
     }),
 };
 
+// ==================== 用户 API ====================
+export const userAPI = {
+  // 获取当前用户信息
+  getMe: () =>
+    fetchAPI<User>('/users/me'),
+  
+  // 更新当前用户信息
+  updateMe: (data: { name?: string; email?: string }) =>
+    fetchAPI<User>('/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  
+  // 修改密码
+  updatePassword: (data: { current_password: string; new_password: string }) =>
+    fetchAPI<{ message: string; code: string }>('/users/me/password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  
+  // 注销账户
+  deleteMe: () =>
+    fetchAPI('/users/me', {
+      method: 'DELETE',
+    }),
+};
+
 export default {
   auth: authAPI,
+  user: userAPI,
   ppt: pptAPI,
   generation: generationAPI,
   export: exportAPI,

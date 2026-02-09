@@ -57,6 +57,34 @@ class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class UserUpdate(BaseModel):
+    """用户更新请求模型"""
+    name: Optional[str] = Field(None, max_length=100, description="用户名")
+    email: Optional[EmailStr] = Field(None, description="用户邮箱")
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PasswordUpdate(BaseModel):
+    """密码更新请求模型"""
+    current_password: str = Field(..., description="当前密码")
+    new_password: str = Field(
+        ...,
+        min_length=8,
+        max_length=100,
+        description="新密码，至少8位"
+    )
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_length(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("密码不能超过 72 个字节")
+        return value
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
 # ==================== 认证相关 ====================
 
 class Token(BaseModel):
