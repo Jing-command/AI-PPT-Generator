@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Slides - AI PPT Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Space Grotesk', system-ui, sans-serif;
+            background: #0a0a0a;
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #8b5cf6 50%, #ec4899 75%, #f43f5e 100%);
+            background-size: 400% 400%;
+            animation: gradient-shift 15s ease infinite;
+        }
+        
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .text-gradient {
+            background: linear-gradient(135deg, #fff 0%, #ffe4e1 30%, #ffd700 70%, #ff9a9e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-8px);
+        }
+        
+        .btn-primary {
+            background: white;
+            color: #764ba2;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Floating animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes float-slow {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(5deg); }
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.1); }
+        }
+        
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
+        .animate-float-delayed { animation: float 7s ease-in-out infinite; animation-delay: -2s; }
+        
+        .floating-shape {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            pointer-events: none;
+        }
+        
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease;
+        }
+        
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Scroll indicator */
+        @keyframes scroll-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(8px); }
+        }
+        
+        .scroll-indicator {
+            animation: scroll-bounce 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background -->
+    <div class="fixed inset-0 gradient-bg -z-20"></div>
+    <div class="fixed inset-0 bg-gradient-to-b from-transparent via-transparent to-black/20 -z-10"></div>
+    
+    <!-- Floating Shapes -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div class="floating-shape w-[500px] h-[500px] bg-gradient-to-br from-yellow-400/40 to-pink-400/20 -top-20 -right-20 animate-float-slow"></div>
+        <div class="floating-shape w-[600px] h-[600px] bg-gradient-to-br from-purple-600/30 to-pink-500/20 -bottom-40 -left-40 animate-float-delayed"></div>
+        <div class="floating-shape w-[300px] h-[300px] bg-indigo-500/30 top-1/3 left-1/4 animate-float"></div>
+        <div class="floating-shape w-[350px] h-[350px] bg-rose-500/25 top-2/3 right-1/4 animate-float-slow"></div>
+        
+        <div class="absolute top-32 right-20 w-24 h-24 border border-white/10 rounded-full animate-spin"></div>
+        <div class="absolute bottom-40 left-20 w-16 h-16 border-2 border-white/5 rounded-lg rotate-45"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 lg:px-8 py-4">
+        <div class="max-w-6xl mx-auto">
+            <div class="glass rounded-2xl px-6 py-3 flex items-center justify-between">
+                <a href="#" class="text-xl font-bold text-gradient">AI Slides</a>
+                
+                <div class="hidden md:flex items-center gap-8">
+                    <a href="#features" class="text-sm text-white/80 hover:text-white transition-colors">功能</a>
+                    <a href="#templates" class="text-sm text-white/80 hover:text-white transition-colors">模板</a>
+                    <a href="#pricing" class="text-sm text-white/80 hover:text-white transition-colors">定价</a>
+                    <a href="#about" class="text-sm text-white/80 hover:text-white transition-colors">关于</a>
+                </div>
+                
+                <button class="hidden md:block bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-full text-sm font-medium transition-colors">
+                    登录
+                </button>
+                
+                <button class="md:hidden p-2 text-white/80" onclick="toggleMobileMenu()">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div id="mobile-menu" class="hidden md:hidden mt-2 glass rounded-2xl p-4">
+                <div class="flex flex-col gap-3">
+                    <a href="#features" class="text-white/80 hover:text-white py-2">功能</a>
+                    <a href="#templates" class="text-white/80 hover:text-white py-2">模板</a>
+                    <a href="#pricing" class="text-white/80 hover:text-white py-2">定价</a>
+                    <a href="#about" class="text-white/80 hover:text-white py-2">关于</a>
+                    <button class="bg-white/10 text-white py-3 rounded-xl mt-2 font-medium">登录</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-24">
+        <div class="text-center max-w-4xl mx-auto">
+            <!-- Badge -->
+            <div class="inline-flex items-center gap-2 glass px-5 py-2.5 rounded-full mb-8 reveal">
+                <i data-lucide="sparkles" class="w-4 h-4 text-yellow-300"></i>
+                <span class="text-sm font-medium">让创意飞起来</span>
+            </div>
+            
+            <!-- Title -->
+            <h1 class="text-6xl sm:text-7xl lg:text-8xl font-bold tracking-tight text-gradient mb-6 reveal">
+                AI SLIDES
+            </h1>
+            
+            <!-- Subtitle -->
+            <p class="text-lg sm:text-xl text-white/90 mb-4 max-w-xl mx-auto leading-relaxed reveal">
+                输入你的想法，AI 秒变精美 PPT
+            </p>
+            
+            <p class="text-base text-white/70 mb-10 reveal">
+                大学生、职场人都在用的 AI 神器
+            </p>
+            
+            <!-- CTA Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center reveal">
+                <button class="btn-primary flex items-center gap-3 px-8 py-4 rounded-full font-semibold text-lg">
+                    <i data-lucide="zap" class="w-5 h-5 fill-current"></i>
+                    立即开始
+                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                </button>
+                
+                <button class="btn-secondary flex items-center gap-2 px-6 py-4 rounded-full font-medium text-white/90">
+                    <i data-lucide="play" class="w-5 h-5"></i>
+                    观看演示
+                </button>
+            </div>
+        </div>
+        
+        <!-- Feature Cards -->
+        <div class="mt-16 sm:mt-20 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto px-4 w-full">
+            <div class="glass-card rounded-2xl p-6 reveal">
+                <div class="mb-4">
+                    <i data-lucide="zap" class="w-7 h-7 text-yellow-300"></i>
+                </div>
+                <h3 class="text-lg font-semibold mb-2">一句话生成</h3>
+                <p class="text-sm text-white/60">AI 自动排版</p>
+            </div>
+            
+            <div class="glass-card rounded-2xl p-6 reveal">
+                <div class="mb-4">
+                    <i data-lucide="palette" class="w-7 h-7 text-pink-300"></i>
+                </div>
+                <h3 class="text-lg font-semibold mb-2">海量模板</h3>
+                <p class="text-sm text-white/60">涵盖各种场景</p>
+            </div>
+            
+            <div class="glass-card rounded-2xl p-6 reveal">
+                <div class="mb-4">
+                    <i data-lucide="pen-tool" class="w-7 h-7 text-cyan-300"></i>
+                </div>
+                <h3 class="text-lg font-semibold mb-2">智能编辑</h3>
+                <p class="text-sm text-white/60">实时优化建议</p>
+            </div>
+        </div>
+        
+        <!-- Scroll Indicator -->
+        <div class="absolute bottom-8 left-1/2 -translate-x-1/2">
+            <div class="w-6 h-10 rounded-full border-2 border-white/30 flex justify-center pt-2 scroll-indicator">
+                <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Steps Section -->
+    <section id="features" class="py-24 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-4xl sm:text-5xl font-bold mb-4 text-gradient">三步生成专业 PPT</h2>
+                <p class="text-white/70 text-lg">简单到不可思议</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="glass-card rounded-3xl p-8 text-center reveal">
+                    <div class="text-6xl font-bold text-white/20 mb-4">01</div>
+                    <h3 class="text-xl font-semibold mb-3">输入主题</h3>
+                    <p class="text-white/70">简单描述你想要的 PPT 内容</p>
+                </div>
+                
+                <div class="glass-card rounded-3xl p-8 text-center reveal">
+                    <div class="text-6xl font-bold text-white/20 mb-4">02</div>
+                    <h3 class="text-xl font-semibold mb-3">AI 生成</h3>
+                    <p class="text-white/70">系统自动生成完整 PPT 内容</p>
+                </div>
+                
+                <div class="glass-card rounded-3xl p-8 text-center reveal">
+                    <div class="text-6xl font-bold text-white/20 mb-4">03</div>
+                    <h3 class="text-xl font-semibold mb-3">导出分享</h3>
+                    <p class="text-white/70">支持 PPT、PDF、图片多种格式</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="py-20 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-5xl mx-auto">
+            <div class="glass rounded-3xl p-8 sm:p-12 reveal">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-8">
+                    <div class="text-center">
+                        <div class="text-3xl sm:text-4xl font-bold text-gradient mb-2">10万+</div>
+                        <div class="text-white/70 text-sm">用户信赖</div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="text-3xl sm:text-4xl font-bold text-gradient mb-2">50+</div>
+                        <div class="text-white/70 text-sm">精美模板</div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="text-3xl sm:text-4xl font-bold text-gradient mb-2">3分钟</div>
+                        <div class="text-white/70 text-sm">平均生成时间</div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="text-3xl sm:text-4xl font-bold text-gradient mb-2">99%</div>
+                        <div class="text-white/70 text-sm">满意度</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-24 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-3xl mx-auto text-center reveal">
+            <h2 class="text-4xl sm:text-5xl font-bold mb-6 text-gradient">
+                准备好让 PPT 制作变轻松了吗？
+            </h2>
+            
+            <p class="text-white/70 text-lg mb-10">
+                加入 10万+ 用户的行列，体验 AI 创作的魔力
+            </p>
+            
+            <button class="btn-primary flex items-center gap-3 px-10 py-5 rounded-full font-semibold text-lg mx-auto">
+                <i data-lucide="sparkles" class="w-5 h-5"></i>
+                免费开始创作
+                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-8 px-4 border-t border-white/10">
+        <div class="max-w-6xl mx-auto text-center text-white/50 text-sm">
+            <p>© 2024 AI Slides. 让每一次演讲都精彩。</p>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+        
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+        
+        // Scroll reveal animation
+        function reveal() {
+            var reveals = document.querySelectorAll('.reveal');
+            
+            for (var i = 0; i < reveals.length; i++) {
+                var windowHeight = window.innerHeight;
+                var elementTop = reveals[i].getBoundingClientRect().top;
+                var elementVisible = 150;
+                
+                if (elementTop < windowHeight - elementVisible) {
+                    reveals[i].classList.add('active');
+                }
+            }
+        }
+        
+        window.addEventListener('scroll', reveal);
+        reveal(); // Trigger once on load
+        
+        // Add stagger delay to reveals
+        document.querySelectorAll('.reveal').forEach((el, i) => {
+            el.style.transitionDelay = `${i * 0.1}s`;
+        });
+    </script>
+</body>
+</html>
