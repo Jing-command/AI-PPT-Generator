@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Sparkles, Zap, Palette, PenTool, ArrowRight, Play } from "lucide-react";
+import Link from "next/link";
 import FloatingShapes from "@/components/FloatingShapes";
 import FeatureCard from "@/components/FeatureCard";
 import Navbar from "@/components/Navbar";
@@ -82,15 +83,17 @@ export default function Home() {
               transition={{ delay: 0.7, duration: 0.6 }}
               className="flex flex-col sm:flex-row gap-4 justify-center items-center"
             >
-              <motion.button
-                whileHover={{ scale: 1.05, y: -3 }}
-                whileTap={{ scale: 0.98 }}
-                className="group flex items-center gap-3 bg-white text-purple-600 px-8 py-4 rounded-full font-semibold text-lg shadow-2xl shadow-purple-900/30 hover:shadow-purple-900/50 transition-shadow"
-              >
-                <Zap className="w-5 h-5 fill-current" />
-                立即开始
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </motion.button>
+              <Link href="/generate">
+                <motion.button
+                  whileHover={{ scale: 1.05, y: -3 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group flex items-center gap-3 bg-white text-purple-600 px-8 py-4 rounded-full font-semibold text-lg shadow-2xl shadow-purple-900/30 hover:shadow-purple-900/50 transition-shadow"
+                >
+                  <Zap className="w-5 h-5 fill-current" />
+                  立即开始
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </motion.button>
+              </Link>
               
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -244,15 +247,17 @@ export default function Home() {
               加入 10万+ 用户的行列，体验 AI 创作的魔力
             </p>
             
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-              className="group flex items-center gap-3 bg-white text-purple-600 px-10 py-5 rounded-full font-semibold text-lg shadow-2xl shadow-purple-900/30 mx-auto"
-            >
-              <Sparkles className="w-5 h-5" />
-              免费开始创作
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </motion.button>
+            <Link href="/generate">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
+                className="group flex items-center gap-3 bg-white text-purple-600 px-10 py-5 rounded-full font-semibold text-lg shadow-2xl shadow-purple-900/30 mx-auto"
+              >
+                <Sparkles className="w-5 h-5" />
+                免费开始创作
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </motion.button>
+            </Link>
           </motion.div>
         </section>
         
