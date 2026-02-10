@@ -1,6 +1,6 @@
 """
-PPT Generation Routes
-Handle PPT generation tasks
+PPT Generation Routes (CrewAI Version)
+使用CrewAI多Agent架构生成PPT
 """
 
 from typing import List, Dict, Any
@@ -20,17 +20,19 @@ from app.schemas.presentation import (
 from app.services.ppt_generation_service import get_ppt_generation_service
 from app.services.ai_provider import AIProviderFactory
 from app.services.api_key_service import APIKeyService
-from app.tasks.generation_tasks import process_generation_task
 
-router = APIRouter(prefix="/ppt/generate", tags=["PPT Generation"])
+# 导入CrewAI任务（替代原有的单模型任务）
+from app.tasks.generation_tasks_crewai import process_generation_task
+
+router = APIRouter(prefix="/ppt/generate", tags=["PPT Generation (CrewAI)"])
 
 
 @router.post(
     "",
     response_model=GenerateResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="提交 PPT 生成任务",
-    description="异步生成 PPT，返回任务 ID"
+    summary="提交 PPT 生成任务（CrewAI多Agent）",
+    description="使用CrewAI多Agent架构异步生成PPT，返回任务 ID"
 )
 async def submit_generation_task(
     request: GenerateRequest,
@@ -38,7 +40,14 @@ async def submit_generation_task(
     db = Depends(get_db)
 ) -> GenerateResponse:
     """
-    提交 PPT 生成任务
+    提交 PPT 生成任务（CrewAI多Agent架构）
+    
+    使用以下Agent协作完成：
+    - 需求分析Agent：理解用户需求
+    - 大纲规划Agent：设计PPT结构
+    - 视觉设计Agent：设计配色和布局
+    - 内容撰写Agent：生成每页内容
+    - 质检Agent：检查内容质量
     
     任务将异步执行，使用轮询或 WebSocket 获取结果
     """
@@ -47,14 +56,14 @@ async def submit_generation_task(
     try:
         task = await service.create_task(current_user.id, request)
         
-        # 启动异步生成任务
+        # 启动CrewAI异步生成任务
         process_generation_task.delay(str(task.id))
         
         return GenerateResponse(
             task_id=task.id,
             status=task.status,
-            estimated_time=60,  # 预估 60 秒
-            message="任务已提交，正在生成中..."
+            estimated_time=120,  # CrewAI多Agent预估时间稍长
+            message="任务已提交，CrewAI多Agent团队正在协作生成中..."
         )
         
     except ValueError as e:

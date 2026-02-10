@@ -41,3 +41,6 @@ aiofiles==24.1.0
 python-dotenv==1.0.1
 structlog==24.4.0
 tenacity==9.0.0
+crewai==0.28.8
+langchain-openai==0.1.6
+langchain-anthropic==0.1.4
