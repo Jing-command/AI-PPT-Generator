@@ -1,0 +1,41 @@
+{
+  "id": "test-id",
+  "title": "2024人工智能应用深度解析：从技术爆发到商业价值重塑",
+  "slides": [
+    {
+      "id": "slide-1",
+      "type": "title",
+      "content": {
+        "title": "2024人工智能应用深度解析：从技术爆发到商业价值重塑",
+        "subtitle": "探索生成式AI与行业深度融合的路径、机遇与挑战 | 行业深度研究报告"
+      },
+      "layout": {
+        "type": "title"
+      },
+      "style": {}
+    },
+    {
+      "id": "slide-2",
+      "type": "content",
+      "content": {
+        "title": "全球人工智能市场规模与经济影响分析"
+      },
+      "layout": {
+        "type": "content"
+      },
+      "style": {}
+    },
+    {
+      "id": "slide-3",
+      "type": "grid",
+      "content": {
+        "title": "核心行业AI应用场景与价值创造"
+      },
+      "layout": {
+        "type": "grid"
+      },
+      "style": {}
+    }
+  ],
+  "status": "draft"
+}

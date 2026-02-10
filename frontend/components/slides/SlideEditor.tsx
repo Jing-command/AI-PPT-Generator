@@ -28,44 +28,82 @@ export function SlideEditor({ slide, onUpdate }: SlideEditorProps) {
 
   // 标题页
   if (layoutType === "title") {
+    const hasImage = !!localContent.image_url;
+    const bgStyle = hasImage ? {
+      backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${localContent.image_url})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center'
+    } : {};
+    
     return (
-      <div className="h-full flex flex-col items-center justify-center text-center">
+      <div 
+        className="h-full flex flex-col items-center justify-center text-center rounded-lg"
+        style={bgStyle}
+      >
         <input
           type="text"
           value={localContent.title || ""}
           onChange={(e) => handleUpdate({ title: e.target.value })}
           placeholder="输入主标题"
-          className="text-4xl font-bold bg-transparent border-b-2 border-transparent hover:border-white/20 focus:border-white/40 focus:outline-none pb-2 mb-4 transition-colors text-center w-full"
+          className={`text-4xl font-bold bg-transparent border-b-2 border-transparent hover:border-white/20 focus:border-white/40 focus:outline-none pb-2 mb-4 transition-colors text-center w-full ${hasImage ? 'text-white placeholder-white/50' : ''}`}
         />
         <input
           type="text"
           value={localContent.subtitle || ""}
           onChange={(e) => handleUpdate({ subtitle: e.target.value })}
           placeholder="输入副标题"
-          className="text-xl text-white/70 bg-transparent border-b border-transparent hover:border-white/20 focus:border-white/40 focus:outline-none pb-1 transition-colors text-center w-3/4"
+          className={`text-xl bg-transparent border-b border-transparent hover:border-white/20 focus:border-white/40 focus:outline-none pb-1 transition-colors text-center w-3/4 ${hasImage ? 'text-white/90 placeholder-white/50' : 'text-white/70'}`}
         />
+        {hasImage && (
+          <input
+            type="text"
+            value={localContent.image_url || ""}
+            onChange={(e) => handleUpdate({ image_url: e.target.value })}
+            placeholder="图片 URL"
+            className="mt-8 text-xs bg-white/10 border border-white/20 rounded px-2 py-1 w-1/2 text-center text-white/70"
+          />
+        )}
       </div>
     );
   }
 
   // 章节页
   if (layoutType === "section") {
+    const hasImage = !!localContent.image_url;
+    const bgStyle = hasImage ? {
+      backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${localContent.image_url})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center'
+    } : {};
+    
     return (
-      <div className="h-full flex flex-col items-center justify-center text-center">
+      <div 
+        className="h-full flex flex-col items-center justify-center text-center rounded-lg"
+        style={bgStyle}
+      >
         <input
           type="text"
           value={localContent.title || ""}
           onChange={(e) => handleUpdate({ title: e.target.value })}
           placeholder="章节标题"
-          className="text-4xl font-bold bg-transparent border-b-2 border-transparent hover:border-white/20 focus:border-white/40 focus:outline-none pb-2 mb-4 transition-colors text-center w-full"
+          className={`text-4xl font-bold bg-transparent border-b-2 border-transparent hover:border-white/20 focus:border-white/40 focus:outline-none pb-2 mb-4 transition-colors text-center w-full ${hasImage ? 'text-white placeholder-white/50' : ''}`}
         />
         <input
           type="text"
           value={localContent.description || ""}
           onChange={(e) => handleUpdate({ description: e.target.value })}
           placeholder="章节描述"
-          className="text-lg text-white/70 bg-transparent border-b border-transparent hover:border-white/20 focus:border-white/40 focus:outline-none pb-1 transition-colors text-center w-2/3"
+          className={`text-lg bg-transparent border-b border-transparent hover:border-white/20 focus:border-white/40 focus:outline-none pb-1 transition-colors text-center w-2/3 ${hasImage ? 'text-white/90 placeholder-white/50' : 'text-white/70'}`}
         />
+        {hasImage && (
+          <input
+            type="text"
+            value={localContent.image_url || ""}
+            onChange={(e) => handleUpdate({ image_url: e.target.value })}
+            placeholder="图片 URL"
+            className="mt-8 text-xs bg-white/10 border border-white/20 rounded px-2 py-1 w-1/2 text-center text-white/70"
+          />
+        )}
       </div>
     );
   }
@@ -425,6 +463,8 @@ export function SlideEditor({ slide, onUpdate }: SlideEditorProps) {
 
   // 图文混排
   if (layoutType === "image-text") {
+    const hasImage = !!localContent.image_url;
+    
     return (
       <div className="h-full flex flex-col">
         <input
@@ -435,9 +475,21 @@ export function SlideEditor({ slide, onUpdate }: SlideEditorProps) {
           className="text-2xl font-bold bg-transparent border-b border-transparent hover:border-white/20 focus:border-white/40 focus:outline-none pb-2 mb-4 transition-colors"
         />
         <div className="flex-1 grid grid-cols-2 gap-6">
-          <div className="bg-white/5 rounded-lg flex flex-col">
-            <div className="flex-1 flex items-center justify-center text-white/30">
-              <div className="text-center">
+          <div className="bg-white/5 rounded-lg flex flex-col overflow-hidden">
+            <div className="flex-1 flex items-center justify-center relative">
+              {hasImage ? (
+                <img 
+                  src={localContent.image_url}
+                  alt="Slide"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    const placeholder = (e.target as HTMLImageElement).nextElementSibling;
+                    if (placeholder) placeholder.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              <div className={`text-center text-white/30 ${hasImage ? 'hidden' : ''}`}>
                 <div className="text-4xl mb-2">🖼️</div>
                 <span className="text-sm">图片区域</span>
               </div>

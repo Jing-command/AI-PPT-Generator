@@ -139,18 +139,57 @@ class AIProviderBase(ABC):
     ) -> str:
         """Generate image prompt"""
         pass
+    
+    async def generate_image(self, prompt: str) -> str:
+        """
+        Generate image from prompt
+        
+        Default implementation returns empty string (not supported)
+        Override in provider that supports image generation
+        
+        Returns:
+            Base64 encoded image data or URL
+        """
+        return ""
 
 
 class YunwuProvider(AIProviderBase):
-    """Yunwu AI (yunwu.ai) Provider - Supports various OpenAI-compatible models"""
+    """
+    Yunwu AI (yunwu.ai) Provider
     
-    def __init__(self, api_key: str):
+    Uses two different models:
+    1. gemini-3-flash-preview: Text generation (outline, content)
+       - API: OpenAI-compatible /v1/chat/completions
+    2. gemini-3-pro-image-preview: Image generation
+       - API: Gemini native /v1beta/models/gemini-3-pro-image-preview:generateContent
+    """
+    
+    # Model configurations
+    TEXT_MODEL = "gemini-3-flash-preview"      # For text generation (outline)
+    IMAGE_MODEL = "gemini-3-pro-image-preview"  # For image generation
+    
+    def __init__(self, api_key: str, image_api_key: str = None):
+        """
+        Args:
+            api_key: API key for text generation (gemini-3-flash-preview)
+            image_api_key: Optional separate API key for image generation.
+                          If not provided, uses api_key for both.
+        """
         super().__init__(api_key)
+        
+        # Client for text generation (OpenAI-compatible)
         self.client = AsyncOpenAI(
             api_key=api_key,
             base_url="https://yunwu.ai/v1"
         )
-        self.model = "gemini-3-flash-preview"
+        self.model = self.TEXT_MODEL
+        
+        # API key for image generation (may be same or different)
+        self.image_api_key = image_api_key or api_key
+        
+        print(f"[YunwuProvider] Text model: {self.TEXT_MODEL}")
+        print(f"[YunwuProvider] Image model: {self.IMAGE_MODEL}")
+        print(f"[YunwuProvider] Using {'same' if api_key == self.image_api_key else 'different'} API key for image generation")
     
     async def generate_ppt_outline(
         self,
@@ -177,6 +216,7 @@ class YunwuProvider(AIProviderBase):
 2. Use {language} language
 3. Design style: {style_desc}
 4. **IMPORTANT**: Each page must have complete, valuable content with data/cases/analysis, not just simple titles
+5. **CRITICAL - MUST FOLLOW**: EVERY single slide MUST include an "image_prompt" field. This is REQUIRED for ALL slides without exception. The image_prompt should describe a professional business illustration suitable for that slide.
 
 **Content Quality Standards**:
 - Each page must have specific data, cases, analysis or insights
@@ -198,6 +238,18 @@ class YunwuProvider(AIProviderBase):
 - "quote": Quote page - Core viewpoint + source
 - "image-text": Image-text mix - Case study display
 
+**Image Generation Support (REQUIRED)**:
+- You MUST add "image_prompt" field to the following slide types:
+  * ALL "title" (cover) slides - MUST have image_prompt
+  * ALL "section" (chapter divider) slides - MUST have image_prompt
+  * At least 1-2 "content" or "image-text" slides - SHOULD have image_prompt
+- Image prompts should be 30-80 words, describing professional business illustrations
+- Include visual style, key elements, colors, and mood in the prompt
+- Examples:
+  * Title: "Professional business illustration of [TOPIC], modern flat design, blue gradient background with geometric shapes, clean corporate aesthetic, suitable for presentation cover, minimalist style"
+  * Section: "Abstract geometric illustration representing [SECTION_TOPIC], gradient background from blue to purple, modern minimalist style, professional business aesthetic, subtle patterns"
+  * Content: "Conceptual business illustration showing [CONCEPT], isometric design, soft shadows, corporate color palette, clean background, professional presentation style"
+
 **Output Format (JSON)**:
 {{
     "title": "Attractive, specific main PPT title",
@@ -215,7 +267,8 @@ class YunwuProvider(AIProviderBase):
         {{
             "type": "title",
             "title": "Specific attractive main title",
-            "subtitle": "Subtitle explaining the core of the presentation"
+            "subtitle": "Subtitle explaining the core of the presentation",
+            "image_prompt": "Professional business illustration related to the topic, modern flat design, gradient colors matching theme, clean corporate aesthetic, suitable for presentation cover"
         }},
         {{
             "type": "content",
@@ -226,7 +279,14 @@ class YunwuProvider(AIProviderBase):
                 "Point 2: Case analysis or comparison", 
                 "Point 3: Trend prediction or recommendations"
             ],
-            "data": {{"key": "Key metric", "value": "Specific value"}}
+            "data": {{"key": "Key metric", "value": "Specific value"}},
+            "image_prompt": "Conceptual business illustration showing data analysis and insights, modern isometric design, charts and graphs visualization, blue color scheme, clean professional style"
+        }},
+        {{
+            "type": "section",
+            "title": "Chapter Transition Title",
+            "description": "Brief description of this section's content",
+            "image_prompt": "Abstract geometric illustration representing new section topic, gradient background, modern minimalist style, professional business aesthetic"
         }},
         {{
             "type": "two-column",
@@ -247,7 +307,8 @@ class YunwuProvider(AIProviderBase):
                     "Disadvantage: Objective evaluation"  
                 ]
             }},
-            "conclusion": "Comparison summary with recommendations"
+            "conclusion": "Comparison summary with recommendations",
+            "image_prompt": "Split-screen comparison illustration showing two different approaches side by side, modern flat design, contrasting colors, professional business style"
         }},
         {{
             "type": "timeline",
@@ -263,7 +324,8 @@ class YunwuProvider(AIProviderBase):
                     "title": "Major breakthrough",
                     "description": "Detailed explanation of breakthrough content and impact"
                 }}
-            ]
+            ],
+            "image_prompt": "Timeline visualization illustration showing progression and growth, arrow moving upward through milestones, gradient background, modern corporate style"
         }},
         {{
             "type": "data",
@@ -280,7 +342,8 @@ class YunwuProvider(AIProviderBase):
                     "description": "Year-over-year growth XX%"
                 }}
             ],
-            "insight": "Insights and analysis behind the data"
+            "insight": "Insights and analysis behind the data",
+            "image_prompt": "Big data visualization illustration with floating numbers and charts, modern tech style, blue and cyan gradient, digital aesthetic, professional business look"
         }},
         {{
             "type": "grid",
@@ -294,13 +357,16 @@ class YunwuProvider(AIProviderBase):
                     "title": "Advantage 2 name",
                     "description": "Detailed explanation + data support"
                 }}
-            ]
+            ],
+            "image_prompt": "Grid layout illustration showing multiple feature icons in organized tiles, modern UI design, consistent color palette, clean professional style"
         }}
     ]
 }}"""
         
+        print(f"[TextGen] Using model: {self.TEXT_MODEL} for outline generation")
+        
         response = await self.client.chat.completions.create(
-            model=self.model,
+            model=self.TEXT_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
@@ -311,11 +377,24 @@ class YunwuProvider(AIProviderBase):
         
         content = response.choices[0].message.content
         
+        # Debug: Check if image_prompt is in raw response
+        if '"image_prompt"' in content:
+            print(f"[AI Provider] Raw response contains image_prompt fields")
+        else:
+            print(f"[AI Provider] WARNING: Raw response does NOT contain image_prompt fields")
+        
         # Check if truncated
         if response.choices[0].finish_reason == "length":
             content = _fix_json_content(content)
         
-        return robust_json_parse(content)
+        result = robust_json_parse(content)
+        
+        # Debug: Check parsed result
+        slides = result.get("slides", [])
+        image_prompt_count = sum(1 for s in slides if s.get("image_prompt"))
+        print(f"[AI Provider] Parsed {len(slides)} slides, {image_prompt_count} have image_prompt")
+        
+        return result
     
     async def generate_slide_content(
         self,
@@ -343,7 +422,7 @@ Requirements:
 Output format: Rich text with markdown-style formatting."""
         
         response = await self.client.chat.completions.create(
-            model=self.model,
+            model=self.TEXT_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=2000
@@ -368,7 +447,7 @@ Requirements:
 Output only the prompt itself, no other text."""
         
         response = await self.client.chat.completions.create(
-            model=self.model,
+            model=self.TEXT_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=200
@@ -377,8 +456,90 @@ Output only the prompt itself, no other text."""
         return response.choices[0].message.content.strip()
     
     async def generate_image(self, prompt: str) -> str:
-        """Not supported"""
-        return ""
+        """
+        Generate image using gemini-3-pro-image-preview model
+        
+        API: Gemini native API (NOT OpenAI-compatible)
+        Endpoint: /v1beta/models/gemini-3-pro-image-preview:generateContent
+        
+        Returns:
+            Base64 encoded image data URL (data:image/png;base64,...)
+        """
+        try:
+            import httpx
+            
+            print(f"[ImageGen] Using model: {self.IMAGE_MODEL}")
+            print(f"[ImageGen] Prompt: {prompt[:50]}...")
+            
+            # Gemini native API endpoint for image generation
+            api_url = f"https://yunwu.ai/v1beta/models/{self.IMAGE_MODEL}:generateContent"
+            
+            payload = {
+                "contents": [
+                    {
+                        "role": "user",
+                        "parts": [
+                            {
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ],
+                "generationConfig": {
+                    "responseModalities": ["Text", "Image"]
+                }
+            }
+            
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.image_api_key}"
+            }
+            
+            print(f"[ImageGen] Sending request to {api_url}")
+            
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(api_url, json=payload, headers=headers)
+                
+                print(f"[ImageGen] Response status: {response.status_code}")
+                
+                if response.status_code != 200:
+                    print(f"[ImageGen] API error: {response.status_code} - {response.text[:200]}")
+                    return ""
+                
+                data = response.json()
+                
+                # Extract image from response
+                candidates = data.get("candidates", [])
+                if not candidates:
+                    print("[ImageGen] No candidates in response")
+                    print(f"[ImageGen] Response: {data}")
+                    return ""
+                
+                content = candidates[0].get("content", {})
+                parts = content.get("parts", [])
+                
+                print(f"[ImageGen] Got {len(parts)} parts in response")
+                
+                for i, part in enumerate(parts):
+                    print(f"[ImageGen] Part {i} keys: {list(part.keys())}")
+                    if "inlineData" in part:
+                        inline_data = part["inlineData"]
+                        mime_type = inline_data.get("mimeType", "image/png")
+                        base64_data = inline_data.get("data", "")
+                        if base64_data:
+                            print(f"[ImageGen] Found image data: {mime_type}, {len(base64_data)} chars")
+                            return f"data:{mime_type};base64,{base64_data}"
+                    elif "text" in part:
+                        print(f"[ImageGen] Text part: {part['text'][:100]}...")
+                
+                print("[ImageGen] No image data found in response")
+                return ""
+                
+        except Exception as e:
+            print(f"[ImageGen] Error generating image: {e}")
+            import traceback
+            traceback.print_exc()
+            return ""
 
 
 class AIProviderFactory:
@@ -389,12 +550,18 @@ class AIProviderFactory:
     }
     
     @classmethod
-    def create(cls, provider: str, api_key: str) -> AIProviderBase:
-        """Create provider instance"""
+    def create(cls, provider: str, api_key: str, image_api_key: str = None) -> AIProviderBase:
+        """Create provider instance
+        
+        Args:
+            provider: Provider name (e.g., 'yunwu')
+            api_key: API key for text generation
+            image_api_key: Optional separate API key for image generation
+        """
         provider_class = cls._providers.get(provider)
         if not provider_class:
             raise ValueError(f"Unsupported provider: {provider}")
-        return provider_class(api_key)
+        return provider_class(api_key, image_api_key)
     
     @classmethod
     def get_supported_providers(cls) -> List[str]:

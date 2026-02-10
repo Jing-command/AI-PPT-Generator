@@ -97,8 +97,29 @@ async def _process_with_sync_db(task_self, task_id: str):
             from app.services.encryption_service import api_key_encryption
             api_key = api_key_encryption.decrypt(key.api_key_encrypted)
             
-            # Create AI provider
-            provider = AIProviderFactory.create(task.provider, api_key)
+            # Check for dedicated image generation API key
+            # Strategy 1: Check for provider named "{provider}-image" in database
+            # Strategy 2: Fall back to environment variable IMAGE_API_KEY
+            # Strategy 3: Use the same key for both
+            image_key_record = await api_key_service.get_image_key(task.user_id, task.provider)
+            
+            if image_key_record and image_key_record.id != key.id:
+                # Found a dedicated image key
+                image_api_key = api_key_encryption.decrypt(image_key_record.api_key_encrypted)
+                print(f"[Generation] Using dedicated image API key from database")
+            else:
+                # Check environment variable
+                import os
+                image_api_key = os.getenv("IMAGE_API_KEY")
+                if image_api_key:
+                    print(f"[Generation] Using IMAGE_API_KEY from environment")
+                else:
+                    # Use the same key for both
+                    image_api_key = api_key
+                    print(f"[Generation] Using same API key for text and image generation")
+            
+            # Create AI provider with both keys
+            provider = AIProviderFactory.create(task.provider, api_key, image_api_key)
             
             # Get parameters
             params = task.parameters or {}
@@ -132,9 +153,23 @@ async def _process_with_sync_db(task_self, task_id: str):
             slides = []
             outline_slides = outline.get("slides", [])
             
+            # Debug: Print outline structure
+            print(f"[Generation] Got {len(outline_slides)} slides from outline")
+            for idx, s in enumerate(outline_slides[:3]):
+                print(f"[Generation] Slide {idx}: type={s.get('type')}, has_image_prompt={'image_prompt' in s}")
+            
+            # Generate images for slides with image_prompt
+            # Limit to first 3 images to avoid rate limits
+            image_count = 0
+            max_images = 3
+            
             for i, slide_outline in enumerate(outline_slides):
                 slide_type = slide_outline.get("type", "content")
                 title = slide_outline.get("title", "")
+                
+                # Debug image_prompt
+                if slide_outline.get("image_prompt"):
+                    print(f"[Generation] Slide {i} ({slide_type}) has image_prompt: {slide_outline['image_prompt'][:50]}...")
                 
                 # Build content based on layout type
                 content_data = {"title": title}
@@ -180,6 +215,30 @@ async def _process_with_sync_db(task_self, task_id: str):
                     points = slide_outline.get("points", [])
                     content_data["bullets"] = points
                     content_data["text"] = slide_outline.get("content", "")
+                
+                # Generate image if image_prompt exists and under limit
+                image_prompt = slide_outline.get("image_prompt")
+                print(f"[Generation] Slide {i+1} ({slide_type}): image_prompt={'YES' if image_prompt else 'NO'}, count={image_count}/{max_images}")
+                
+                if image_prompt and image_count < max_images:
+                    try:
+                        print(f"[Generation] Generating image for slide {i+1}: {title[:30]}...")
+                        print(f"[Generation] Prompt: {image_prompt[:80]}...")
+                        
+                        image_url = await provider.generate_image(image_prompt)
+                        
+                        if image_url:
+                            content_data["image_url"] = image_url
+                            print(f"[Generation] ✓ Image generated for slide {i+1}, length={len(image_url)}")
+                            image_count += 1
+                        else:
+                            print(f"[Generation] ✗ No image returned for slide {i+1}")
+                    except Exception as e:
+                        print(f"[Generation] ✗ Failed to generate image for slide {i+1}: {e}")
+                        import traceback
+                        traceback.print_exc()
+                elif image_prompt and image_count >= max_images:
+                    print(f"[Generation] Skipping image for slide {i+1} (max reached)")
                 
                 slide_style = slide_outline.get("style", {})
                 

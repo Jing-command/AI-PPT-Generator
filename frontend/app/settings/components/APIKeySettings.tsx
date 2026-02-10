@@ -28,6 +28,7 @@ const PROVIDERS = [
   { id: "ernie", name: "文心一言", icon: "📚" },
   { id: "deepseek", name: "DeepSeek", icon: "🔮" },
   { id: "yunwu", name: "云屋 AI (yunwu.ai)", icon: "☁️" },
+  { id: "yunwu-image", name: "云屋 AI - 图片生成专用", icon: "🖼️" },
 ];
 
 export default function APIKeySettings() {

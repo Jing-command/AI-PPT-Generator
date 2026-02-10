@@ -82,7 +82,7 @@ class APIKeyService:
                 UserAPIKey.provider == provider,
                 UserAPIKey.is_default == True,
                 UserAPIKey.status == "active"
-            )
+            ).limit(1)
         )
         key = result.scalar_one_or_none()
         if key:
@@ -94,9 +94,42 @@ class APIKeyService:
                 UserAPIKey.user_id == user_id,
                 UserAPIKey.provider == provider,
                 UserAPIKey.status == "active"
-            )
+            ).limit(1)
         )
         return result.scalar_one_or_none()
+    
+    async def get_image_key(self, user_id: UUID, provider: str) -> Optional[UserAPIKey]:
+        """
+        获取用户用于图片生成的 API Key
+        
+        策略：
+        1. 首先查找 provider 为 "{provider}-image" 的专用 Key
+        2. 如果没有，使用默认的 provider Key
+        
+        Args:
+            user_id: 用户 ID
+            provider: 基础提供商（如 "yunwu"）
+            
+        Returns:
+            图片生成的 API Key 或默认 Key
+        """
+        # 首先查找专用的图片生成 Key
+        image_provider = f"{provider}-image"
+        result = await self.db.execute(
+            select(UserAPIKey).where(
+                UserAPIKey.user_id == user_id,
+                UserAPIKey.provider == image_provider,
+                UserAPIKey.status == "active"
+            ).limit(1)
+        )
+        key = result.scalar_one_or_none()
+        if key:
+            print(f"[APIKeyService] Found dedicated image key for provider: {provider}")
+            return key
+        
+        # 如果没有专用 Key，返回默认 Key
+        print(f"[APIKeyService] No dedicated image key found, using default key")
+        return await self.get_default_key(user_id, provider)
     
     async def get_any_active_key(self, user_id: UUID) -> Optional[UserAPIKey]:
         """
@@ -116,14 +149,14 @@ class APIKeyService:
                 UserAPIKey.user_id == user_id,
                 UserAPIKey.is_default == True,
                 UserAPIKey.status == "active"
-            )
+            ).limit(1)
         )
         key = result.scalar_one_or_none()
         if key:
             return key
         
         # 按优先级查找
-        priority_order = ["openai", "moonshot", "deepseek", "anthropic", "aliyun", "tencent", "azure"]
+        priority_order = ["openai", "moonshot", "deepseek", "anthropic", "aliyun", "tencent", "azure", "yunwu"]
         
         for provider in priority_order:
             result = await self.db.execute(
@@ -131,18 +164,20 @@ class APIKeyService:
                     UserAPIKey.user_id == user_id,
                     UserAPIKey.provider == provider,
                     UserAPIKey.status == "active"
-                )
+                ).limit(1)
             )
             key = result.scalar_one_or_none()
             if key:
                 return key
         
-        # 最后尝试任意 active key
+        # 最后尝试任意 active key（排除图片专用key）
+        from sqlalchemy import not_
         result = await self.db.execute(
             select(UserAPIKey).where(
                 UserAPIKey.user_id == user_id,
-                UserAPIKey.status == "active"
-            )
+                UserAPIKey.status == "active",
+                not_(UserAPIKey.provider.like('%-image'))
+            ).limit(1)
         )
         return result.scalar_one_or_none()
     

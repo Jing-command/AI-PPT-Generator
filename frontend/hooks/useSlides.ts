@@ -6,6 +6,7 @@ import { pptAPI } from '@/lib/api';
 interface Slide {
   id: string;
   title: string;
+  type: string;
   content: any;
   layout: { type: string; theme?: string | null; background?: string | null };
   notes?: string;

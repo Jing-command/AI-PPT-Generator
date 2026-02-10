@@ -28,21 +28,37 @@ export function SlideThumbnail({
 
     switch (layoutType) {
       case "title":
+        const titleBgStyle = content.image_url ? {
+          backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${content.image_url})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        } : {};
         return (
-          <div className="h-full flex flex-col items-center justify-center p-2 text-center">
-            <p className="text-[8px] font-bold text-white/90 line-clamp-2">{title}</p>
+          <div 
+            className="h-full flex flex-col items-center justify-center p-2 text-center"
+            style={titleBgStyle}
+          >
+            <p className={`text-[8px] font-bold line-clamp-2 ${content.image_url ? 'text-white' : 'text-white/90'}`}>{title}</p>
             {content.subtitle && (
-              <p className="text-[6px] text-white/60 mt-1 line-clamp-1">{content.subtitle}</p>
+              <p className={`text-[6px] mt-1 line-clamp-1 ${content.image_url ? 'text-white/80' : 'text-white/60'}`}>{content.subtitle}</p>
             )}
           </div>
         );
 
       case "section":
+        const sectionBgStyle = content.image_url ? {
+          backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${content.image_url})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        } : {};
         return (
-          <div className="h-full flex flex-col items-center justify-center p-2 text-center bg-white/10">
-            <p className="text-[8px] font-bold text-white/90 line-clamp-2">{title}</p>
+          <div 
+            className="h-full flex flex-col items-center justify-center p-2 text-center bg-white/10"
+            style={sectionBgStyle}
+          >
+            <p className={`text-[8px] font-bold line-clamp-2 ${content.image_url ? 'text-white' : 'text-white/90'}`}>{title}</p>
             {content.description && (
-              <p className="text-[5px] text-white/50 mt-1 line-clamp-1">{content.description}</p>
+              <p className={`text-[5px] mt-1 line-clamp-1 ${content.image_url ? 'text-white/80' : 'text-white/50'}`}>{content.description}</p>
             )}
           </div>
         );
@@ -164,8 +180,19 @@ export function SlideThumbnail({
           <div className="h-full flex flex-col p-2">
             <p className="text-[8px] font-bold text-white/90 mb-1">{title}</p>
             <div className="flex-1 flex gap-1">
-              <div className="flex-1 bg-white/10 rounded flex items-center justify-center">
-                <span className="text-[6px] text-white/30">图</span>
+              <div className="flex-1 bg-white/10 rounded flex items-center justify-center overflow-hidden">
+                {content.image_url ? (
+                  <img 
+                    src={content.image_url} 
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <span className="text-[6px] text-white/30">图</span>
+                )}
               </div>
               <div className="flex-1 bg-white/5 rounded p-1">
                 <p className="text-[5px] text-white/50 line-clamp-3">{text || "..."}</p>

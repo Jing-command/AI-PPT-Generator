@@ -3,12 +3,17 @@ Export Service
 Handle PPTX, PDF, image export
 """
 
+import base64
 import os
+import re
 import tempfile
 import uuid
+from io import BytesIO
 from pathlib import Path
 from typing import Optional, Dict, Any
+from urllib.parse import urlparse
 
+import httpx
 from pptx import Presentation as PPTXPresentation
 from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
@@ -17,6 +22,49 @@ from pptx.enum.shapes import MSO_SHAPE
 
 from app.config import settings
 from app.models.presentation import Presentation
+
+
+class ImageHelper:
+    """Helper class for handling images from URLs or base64 data"""
+    
+    @staticmethod
+    def is_base64(data: str) -> bool:
+        """Check if string is base64 encoded image"""
+        return data.startswith('data:image') or (len(data) > 100 and not data.startswith('http'))
+    
+    @staticmethod
+    def decode_base64(data: str) -> bytes:
+        """Decode base64 image data"""
+        if data.startswith('data:image'):
+            # Extract base64 part from data URL
+            match = re.match(r'data:image/[^;]+;base64,(.+)', data)
+            if match:
+                data = match.group(1)
+        return base64.b64decode(data)
+    
+    @staticmethod
+    async def download_image(url: str) -> bytes:
+        """Download image from URL"""
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url)
+            if response.status_code == 200:
+                return response.content
+            raise ValueError(f"Failed to download image: {response.status_code}")
+    
+    @staticmethod
+    async def get_image_data(image_url: str) -> Optional[BytesIO]:
+        """Get image data as BytesIO from URL or base64"""
+        try:
+            if ImageHelper.is_base64(image_url):
+                data = ImageHelper.decode_base64(image_url)
+                return BytesIO(data)
+            elif image_url.startswith('http'):
+                data = await ImageHelper.download_image(image_url)
+                return BytesIO(data)
+            return None
+        except Exception as e:
+            print(f"[Export] Failed to get image data: {e}")
+            return None
 
 
 class ExportService:
@@ -81,6 +129,9 @@ class ExportService:
             text_rgb = self._hex_to_rgb(theme.get("text_color", "#1a202c"))
             bg_rgb = self._hex_to_rgb(theme.get("background_color", "#ffffff"))
             
+            # Get image URL if available
+            image_url = content.get('image_url')
+            
             # Create blank slide
             slide = prs.slides.add_slide(prs.slide_layouts[6])
             
@@ -90,11 +141,18 @@ class ExportService:
             fill.solid()
             fill.fore_color.rgb = RGBColor(*bg_rgb)
             
+            # Add background image if available
+            image_data = None
+            if image_url:
+                image_data = await ImageHelper.get_image_data(image_url)
+                if image_data:
+                    self._add_background_image(slide, image_data)
+            
             # Render based on layout type
             if slide_type == 'title':
-                self._render_title_slide(slide, content, primary_rgb, text_rgb)
+                self._render_title_slide(slide, content, primary_rgb, text_rgb, image_data is not None)
             elif slide_type == 'section':
-                self._render_section_slide(slide, content, primary_rgb, text_rgb)
+                self._render_section_slide(slide, content, primary_rgb, text_rgb, image_data is not None)
             elif slide_type == 'two-column':
                 self._render_two_column_slide(slide, content, primary_rgb, text_rgb)
             elif slide_type == 'timeline':
@@ -110,36 +168,81 @@ class ExportService:
             elif slide_type == 'quote':
                 self._render_quote_slide(slide, content, primary_rgb, text_rgb)
             elif slide_type == 'image-text':
-                self._render_image_text_slide(slide, content, primary_rgb, text_rgb)
+                self._render_image_text_slide(slide, content, primary_rgb, text_rgb, image_data)
             else:
                 self._render_content_slide(slide, content, primary_rgb, text_rgb)
         
         prs.save(output_path)
         return output_path
     
-    def _render_title_slide(self, slide, content, primary_rgb, text_rgb):
+    def _add_background_image(self, slide, image_data: BytesIO):
+        """Add background image to slide with transparency overlay"""
+        try:
+            # Add image as background (full slide)
+            slide.shapes.add_picture(
+                image_data,
+                Inches(0), Inches(0),
+                width=Inches(13.333),
+                height=Inches(7.5)
+            )
+        except Exception as e:
+            print(f"[Export] Failed to add background image: {e}")
+    
+    def _render_title_slide(self, slide, content, primary_rgb, text_rgb, has_image=False):
         """Render title slide"""
         title = content.get('title', '')
         subtitle = content.get('subtitle', '')
         
+        # If has background image, use white text for better visibility
+        text_color = RGBColor(255, 255, 255) if has_image else RGBColor(*primary_rgb)
+        subtext_color = RGBColor(240, 240, 240) if has_image else RGBColor(*text_rgb)
+        
+        # Add semi-transparent overlay for better text readability
+        if has_image:
+            overlay = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE,
+                Inches(0), Inches(0),
+                Inches(13.333), Inches(7.5)
+            )
+            overlay.fill.solid()
+            overlay.fill.fore_color.rgb = RGBColor(0, 0, 0)
+            overlay.fill.transparency = 0.4
+            overlay.line.fill.background()
+        
         self._add_text_box(slide, 0.5, 2.5, 12.333, 1.5, title,
-                          font_size=54, bold=True, color=primary_rgb, align=PP_ALIGN.CENTER)
+                          font_size=54, bold=True, color=text_color, align=PP_ALIGN.CENTER)
         
         if subtitle:
             self._add_text_box(slide, 0.5, 4.2, 12.333, 1, subtitle,
-                              font_size=28, color=text_rgb, align=PP_ALIGN.CENTER)
+                              font_size=28, color=subtext_color, align=PP_ALIGN.CENTER)
     
-    def _render_section_slide(self, slide, content, primary_rgb, text_rgb):
+    def _render_section_slide(self, slide, content, primary_rgb, text_rgb, has_image=False):
         """Render section divider slide"""
         title = content.get('title', '')
         description = content.get('description', '')
         
+        # If has background image, use white text for better visibility
+        text_color = RGBColor(255, 255, 255) if has_image else RGBColor(*primary_rgb)
+        subtext_color = RGBColor(240, 240, 240) if has_image else RGBColor(*text_rgb)
+        
+        # Add semi-transparent overlay for better text readability
+        if has_image:
+            overlay = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE,
+                Inches(0), Inches(0),
+                Inches(13.333), Inches(7.5)
+            )
+            overlay.fill.solid()
+            overlay.fill.fore_color.rgb = RGBColor(0, 0, 0)
+            overlay.fill.transparency = 0.4
+            overlay.line.fill.background()
+        
         self._add_text_box(slide, 0.5, 2.8, 12.333, 1.5, title,
-                          font_size=48, bold=True, color=primary_rgb, align=PP_ALIGN.CENTER)
+                          font_size=48, bold=True, color=text_color, align=PP_ALIGN.CENTER)
         
         if description:
             self._add_text_box(slide, 0.5, 4.3, 12.333, 1, description,
-                              font_size=24, color=text_rgb, align=PP_ALIGN.CENTER)
+                              font_size=24, color=subtext_color, align=PP_ALIGN.CENTER)
     
     def _render_content_slide(self, slide, content, primary_rgb, text_rgb):
         """Render content slide"""
@@ -377,16 +480,36 @@ class ExportService:
             self._add_text_box(slide, 0.5, 5.5, 12.333, 0.6, title,
                               font_size=18, color=text_rgb, align=PP_ALIGN.CENTER)
     
-    def _render_image_text_slide(self, slide, content, primary_rgb, text_rgb):
+    def _render_image_text_slide(self, slide, content, primary_rgb, text_rgb, image_data=None):
         """Render image-text layout slide"""
         title = content.get('title', '')
         text = content.get('text', '')
+        image_url = content.get('image_url', '')
         
         self._add_text_box(slide, 0.5, 0.4, 12.333, 1, title,
                           font_size=40, bold=True, color=primary_rgb)
         
+        # Add actual image if available, otherwise use placeholder
+        if image_data:
+            try:
+                slide.shapes.add_picture(
+                    image_data,
+                    Inches(0.5), Inches(1.5),
+                    width=Inches(5.9)
+                )
+            except Exception as e:
+                print(f"[Export] Failed to add image: {e}")
+                self._add_image_placeholder(slide, primary_rgb, 0.5, 1.5, 5.9, 5.5)
+        else:
+            self._add_image_placeholder(slide, primary_rgb, 0.5, 1.5, 5.9, 5.5)
+        
+        self._add_text_box(slide, 6.9, 1.5, 5.9, 5.5, text,
+                          font_size=22, color=text_rgb)
+    
+    def _add_image_placeholder(self, slide, primary_rgb, left, top, width, height):
+        """Add image placeholder shape"""
         img_shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
-                                          Inches(0.5), Inches(1.5), Inches(5.9), Inches(5.5))
+                                          Inches(left), Inches(top), Inches(width), Inches(height))
         img_shape.fill.solid()
         img_shape.fill.fore_color.rgb = RGBColor(230, 230, 230)
         img_shape.line.color.rgb = RGBColor(*primary_rgb)
@@ -398,9 +521,6 @@ class ExportService:
         run = p.runs[0]
         run.font.size = Pt(18)
         run.font.color.rgb = RGBColor(150, 150, 150)
-        
-        self._add_text_box(slide, 6.9, 1.5, 5.9, 5.5, text,
-                          font_size=22, color=text_rgb)
     
     async def export_pdf(self, presentation: Presentation, output_path: Optional[str] = None) -> str:
         """Export to PDF"""
