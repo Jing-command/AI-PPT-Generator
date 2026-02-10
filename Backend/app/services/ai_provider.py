@@ -1,6 +1,6 @@
 """
 AI Provider Service Wrapper
-Unified interface for different AI services
+Unified interface for different AI services - 使用 Gemini 原生 API 格式
 """
 
 import json
@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 from typing import AsyncGenerator, Dict, List, Optional
 
 import httpx
-from openai import AsyncOpenAI
 
 from app.config import settings
 
@@ -142,15 +141,73 @@ class AIProviderBase(ABC):
 
 
 class YunwuProvider(AIProviderBase):
-    """Yunwu AI (yunwu.ai) Provider - Supports various OpenAI-compatible models"""
+    """
+    Yunwu AI (yunwu.ai) Provider - 使用 Gemini 原生 API 格式
+    
+    API 端点: https://yunwu.ai/v1beta/models/{model}:generateContent
+    """
     
     def __init__(self, api_key: str):
         super().__init__(api_key)
-        self.client = AsyncOpenAI(
-            api_key=api_key,
-            base_url="https://yunwu.ai/v1"
-        )
-        self.model = "gemini-3-flash-preview"
+        self.base_url = "https://yunwu.ai/v1beta"
+        self.model = "gemini-3-pro"  # 或 gemini-3-flash-preview
+        self.api_key = api_key
+    
+    async def _call_gemini_api(self, contents: List[Dict], generation_config: Dict = None) -> Dict:
+        """
+        调用 Gemini 原生 API
+        
+        Args:
+            contents: Gemini 格式的内容数组
+            generation_config: 生成配置
+            
+        Returns:
+            API 响应数据
+        """
+        api_url = f"{self.base_url}/models/{self.model}:generateContent"
+        
+        payload = {
+            "contents": contents
+        }
+        
+        if generation_config:
+            payload["generationConfig"] = generation_config
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                api_url,
+                json=payload,
+                headers=headers,
+                timeout=120.0
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    def _extract_text(self, response: Dict) -> str:
+        """从 Gemini 响应中提取文本内容"""
+        try:
+            candidates = response.get("candidates", [])
+            if not candidates:
+                return ""
+            
+            content = candidates[0].get("content", {})
+            parts = content.get("parts", [])
+            
+            # 合并所有文本部分
+            texts = []
+            for part in parts:
+                if "text" in part:
+                    texts.append(part["text"])
+            
+            return "\n".join(texts)
+        except Exception as e:
+            print(f"[YunwuProvider] Extract text error: {e}")
+            return ""
     
     async def generate_ppt_outline(
         self,
@@ -159,7 +216,7 @@ class YunwuProvider(AIProviderBase):
         language: str = "zh",
         style: str = "business"
     ) -> Dict:
-        """Generate detailed PPT outline with rich content"""
+        """使用 Gemini 原生 API 生成 PPT 大纲"""
         
         style_descriptions = {
             "business": "Professional business style, deep blue tones, clean and elegant",
@@ -170,7 +227,7 @@ class YunwuProvider(AIProviderBase):
         }
         style_desc = style_descriptions.get(style, style_descriptions["business"])
         
-        system_prompt = f"""You are a professional PPT content strategist. Generate content-rich, data-driven, well-structured presentations based on user topics.
+        system_text = f"""You are a professional PPT content strategist. Generate content-rich, data-driven, well-structured presentations based on user topics.
 
 **Critical Requirements**:
 1. Generate {num_slides} slides
@@ -178,144 +235,43 @@ class YunwuProvider(AIProviderBase):
 3. Design style: {style_desc}
 4. **IMPORTANT**: Each page must have complete, valuable content with data/cases/analysis, not just simple titles
 
-**Content Quality Standards**:
-- Each page must have specific data, cases, analysis or insights
-- Avoid "outline-style" short titles, provide expanded explanations
-- Use realistic and credible data (placeholders like "about XX%", "over XXX million" are acceptable)
-- Include industry trends, market size, competitive analysis
-- Use structured expressions like comparison, causality, timeline appropriately
-
-**Available Layout Types** (auto-selected based on content):
-- "title": Cover - Main title + subtitle + speaker info
-- "section": Section divider - Chapter title + brief description  
-- "content": Content page - Detailed body with paragraph explanations
-- "two-column": Two-column comparison - Left/right comparative analysis
-- "timeline": Timeline - Development history, milestones
-- "process": Process flow - Step-by-step explanation
-- "grid": Grid - Features/capabilities showcase
-- "comparison": Comparison table - Multi-dimensional data comparison
-- "data": Data page - Big numbers + explanatory notes
-- "quote": Quote page - Core viewpoint + source
-- "image-text": Image-text mix - Case study display
-
 **Output Format (JSON)**:
 {{
-    "title": "Attractive, specific main PPT title",
-    "summary": "Overall content summary, around 200 words",
+    "title": "Main PPT title",
+    "summary": "Overall summary around 200 words",
     "theme": {{
         "name": "Theme name",
-        "primary_color": "Primary color, e.g., #1a365d",
-        "secondary_color": "Secondary color, e.g., #3182ce", 
-        "background_color": "Background color, e.g., #ffffff",
-        "text_color": "Text color, e.g., #1a202c",
-        "accent_color": "Accent color, e.g., #ed8936",
-        "font_family": "Font, e.g., Microsoft YaHei"
+        "primary_color": "#1a365d",
+        "secondary_color": "#3182ce"
     }},
     "slides": [
         {{
             "type": "title",
-            "title": "Specific attractive main title",
-            "subtitle": "Subtitle explaining the core of the presentation"
+            "title": "Main title",
+            "subtitle": "Subtitle"
         }},
         {{
-            "type": "content",
-            "title": "Specific chapter title",
-            "content": "Detailed paragraph content including data, analysis, insights - not just simple titles. At least 100 words of complete explanation.",
-            "bullets": [
-                "Point 1: Detailed explanation with data support",
-                "Point 2: Case analysis or comparison", 
-                "Point 3: Trend prediction or recommendations"
-            ],
-            "data": {{"key": "Key metric", "value": "Specific value"}}
-        }},
-        {{
-            "type": "two-column",
-            "title": "Comparison analysis title",
-            "left": {{
-                "title": "Option A name",
-                "points": [
-                    "Advantage 1: Specific explanation + data",
-                    "Advantage 2: Detailed analysis", 
-                    "Disadvantage: Objective evaluation"
-                ]
-            }},
-            "right": {{
-                "title": "Option B name",
-                "points": [
-                    "Advantage 1: Specific explanation + data",
-                    "Advantage 2: Detailed analysis",
-                    "Disadvantage: Objective evaluation"  
-                ]
-            }},
-            "conclusion": "Comparison summary with recommendations"
-        }},
-        {{
-            "type": "timeline",
-            "title": "Development history title",
-            "events": [
-                {{
-                    "year": "2019",
-                    "title": "Milestone event",
-                    "description": "What specifically happened, what was the significance, what were the metrics"
-                }},
-                {{
-                    "year": "2021", 
-                    "title": "Major breakthrough",
-                    "description": "Detailed explanation of breakthrough content and impact"
-                }}
-            ]
-        }},
-        {{
-            "type": "data",
-            "title": "Core data display",
-            "stats": [
-                {{
-                    "value": "85%",
-                    "label": "Market share",
-                    "description": "Leading position in XX field"
-                }},
-                {{
-                    "value": "250M",
-                    "label": "User scale", 
-                    "description": "Year-over-year growth XX%"
-                }}
-            ],
-            "insight": "Insights and analysis behind the data"
-        }},
-        {{
-            "type": "grid",
-            "title": "Core advantages/features",
-            "items": [
-                {{
-                    "title": "Advantage 1 name",
-                    "description": "Detailed explanation of what this advantage is, how it manifests, what value it brings"
-                }},
-                {{
-                    "title": "Advantage 2 name",
-                    "description": "Detailed explanation + data support"
-                }}
-            ]
+            "type": "content", 
+            "title": "Chapter title",
+            "content": "Detailed content...",
+            "bullets": ["Point 1", "Point 2", "Point 3"]
         }}
     ]
 }}"""
+
+        contents = [
+            {"role": "user", "parts": [{"text": system_text}]},
+            {"role": "user", "parts": [{"text": f"Generate PPT outline for: {prompt}"}]}
+        ]
         
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=8000
-        )
+        response = await self._call_gemini_api(contents)
+        text = self._extract_text(response)
         
-        content = response.choices[0].message.content
+        # 处理可能的截断
+        if text and not text.endswith("}"):
+            text = _fix_json_content(text)
         
-        # Check if truncated
-        if response.choices[0].finish_reason == "length":
-            content = _fix_json_content(content)
-        
-        return robust_json_parse(content)
+        return robust_json_parse(text)
     
     async def generate_slide_content(
         self,
@@ -324,9 +280,9 @@ class YunwuProvider(AIProviderBase):
         context: str,
         language: str = "zh"
     ) -> str:
-        """Generate detailed slide content"""
+        """使用 Gemini 原生 API 生成幻灯片内容"""
         
-        prompt = f"""Generate detailed slide content with data and analysis.
+        prompt = f"""Generate detailed slide content.
 
 Title: {title}
 Type: {slide_type}
@@ -335,27 +291,17 @@ Language: {language}
 
 Requirements:
 1. Provide specific data, examples, or case studies
-2. Include analysis and insights, not just surface descriptions
-3. Use structured formatting (bullet points, numbered lists)
-4. Each point should have supporting details
-5. Total length: 150-300 words
+2. Include analysis and insights
+3. Use structured formatting
+4. 150-300 words total"""
 
-Output format: Rich text with markdown-style formatting."""
+        contents = [{"role": "user", "parts": [{"text": prompt}]}]
         
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=2000
-        )
-        
-        return response.choices[0].message.content
+        response = await self._call_gemini_api(contents)
+        return self._extract_text(response)
     
-    async def generate_image_prompt(
-        self,
-        slide_content: str
-    ) -> str:
-        """Generate image prompt"""
+    async def generate_image_prompt(self, slide_content: str) -> str:
+        """使用 Gemini 原生 API 生成图片提示词"""
         
         prompt = f"""Generate an image prompt based on the following content:
 {slide_content}
@@ -365,7 +311,68 @@ Requirements:
 2. Professional business style
 3. Suitable for PPT use
 
-Output only the prompt itself, no other text."""
+Output only the prompt itself."""
+
+        contents = [{"role": "user", "parts": [{"text": prompt}]}]
+        
+        response = await self._call_gemini_api(contents)
+        return self._extract_text(response)
+    
+    async def generate_image(self, prompt: str) -> str:
+        """
+        使用 Gemini 原生 API 生成图片
+        
+        使用支持图片生成的模型端点
+        """
+        api_url = f"{self.base_url}/models/gemini-3-pro-image-preview:generateContent"
+        
+        payload = {
+            "contents": [{
+                "role": "user",
+                "parts": [{"text": prompt}]
+            }],
+            "generationConfig": {
+                "responseModalities": ["Text", "Image"]
+            }
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    api_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=60.0
+                )
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                # 解析响应中的图片数据
+                candidates = data.get("candidates", [])
+                if not candidates:
+                    return ""
+                
+                content = candidates[0].get("content", {})
+                parts = content.get("parts", [])
+                
+                for part in parts:
+                    if "inlineData" in part:
+                        inline_data = part["inlineData"]
+                        mime_type = inline_data.get("mimeType", "image/png")
+                        base64_data = inline_data.get("data", "")
+                        return f"data:{mime_type};base64,{base64_data}"
+                
+                return ""
+                
+        except Exception as e:
+            print(f"[YunwuProvider] Image generation error: {e}")
+            return ""
         
         response = await self.client.chat.completions.create(
             model=self.model,
