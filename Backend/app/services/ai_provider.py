@@ -377,8 +377,69 @@ Output only the prompt itself, no other text."""
         return response.choices[0].message.content.strip()
     
     async def generate_image(self, prompt: str) -> str:
-        """Not supported"""
-        return ""
+        """
+        使用 Gemini 原生 API 生成图片 (通过 yunwu.ai)
+        
+        使用端点: /v1beta/models/gemini-3-pro-image-preview:generateContent
+        """
+        import httpx
+        import base64
+        
+        api_url = "https://yunwu.ai/v1beta/models/gemini-3-pro-image-preview:generateContent"
+        
+        # 构建 Gemini 原生格式的 payload
+        payload = {
+            "contents": [{
+                "role": "user",
+                "parts": [{"text": prompt}]
+            }],
+            "generationConfig": {
+                "responseModalities": ["Text", "Image"]
+            }
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    api_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=60.0
+                )
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                # 解析响应中的图片数据
+                # Gemini 返回 inlineData，包含 base64 编码的图片
+                candidates = data.get("candidates", [])
+                if not candidates:
+                    return ""
+                
+                content = candidates[0].get("content", {})
+                parts = content.get("parts", [])
+                
+                for part in parts:
+                    # 查找包含 inlineData 的部分
+                    if "inlineData" in part:
+                        inline_data = part["inlineData"]
+                        mime_type = inline_data.get("mimeType", "image/png")
+                        base64_data = inline_data.get("data", "")
+                        
+                        # 返回 data URL 格式
+                        return f"data:{mime_type};base64,{base64_data}"
+                
+                # 如果没有找到图片，返回空
+                return ""
+                
+        except Exception as e:
+            print(f"[YunwuProvider] Image generation error: {e}")
+            return ""
 
 
 class AIProviderFactory:
