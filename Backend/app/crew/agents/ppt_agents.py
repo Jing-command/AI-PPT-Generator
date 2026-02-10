@@ -14,14 +14,23 @@ def get_llm(provider: str = "openai", model: str = None, api_key: str = None):
     获取LLM实例 (CrewAI 1.9.3+ 格式)
     
     Args:
-        provider: 提供商 (openai/anthropic/moonshot)
+        provider: 提供商 (openai/anthropic/moonshot/gemini)
         model: 模型名称
         api_key: API密钥
     
     Returns:
         LLM实例
     """
-    if provider == "moonshot":
+    if provider == "gemini":
+        # Gemini 3 Pro - 使用 OpenAI 兼容格式
+        return LLM(
+            model=f"openai/{model or 'gemini-3-pro'}",
+            api_key=api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            temperature=0.7,
+            max_tokens=4000
+        )
+    elif provider == "moonshot":
         # Moonshot (Kimi) API - 使用 openai 兼容格式
         return LLM(
             model=f"openai/{model or 'kimi-k2-5'}",
