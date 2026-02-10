@@ -1,18 +1,17 @@
 """
-CrewAI Agents for PPT Generation
-多Agent协作生成PPT系统
+CrewAI Agents for PPT Generation (v1.9.3 Compatible)
+多Agent协作生成PPT系统 - 适配 CrewAI 1.9.3
 """
 
 from crewai import Agent
-from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
+from crewai.llm import LLM
 
 from app.config import settings
 
 
 def get_llm(provider: str = "openai", model: str = None, api_key: str = None):
     """
-    获取LLM实例
+    获取LLM实例 (CrewAI 1.9.3+ 格式)
     
     Args:
         provider: 提供商 (openai/anthropic/moonshot)
@@ -22,33 +21,34 @@ def get_llm(provider: str = "openai", model: str = None, api_key: str = None):
     Returns:
         LLM实例
     """
-    if provider == "openai":
-        return ChatOpenAI(
-            model=model or "gpt-4o-mini",
-            api_key=api_key,
-            temperature=0.7,
-            max_tokens=4000
-        )
-    elif provider == "anthropic":
-        return ChatAnthropic(
-            model=model or "claude-3-sonnet-20240229",
-            anthropic_api_key=api_key,
-            temperature=0.7,
-            max_tokens=4000
-        )
-    elif provider == "moonshot":
-        # Kimi (Moonshot) API - 兼容OpenAI格式
-        return ChatOpenAI(
-            model=model or "kimi-k2-5",
+    if provider == "moonshot":
+        # Moonshot (Kimi) API - 使用 openai 兼容格式
+        return LLM(
+            model=f"openai/{model or 'kimi-k2-5'}",
             api_key=api_key,
             base_url="https://api.moonshot.cn/v1",
             temperature=0.7,
             max_tokens=4000
         )
+    elif provider == "openai":
+        return LLM(
+            model=f"openai/{model or 'gpt-4o-mini'}",
+            api_key=api_key,
+            temperature=0.7,
+            max_tokens=4000
+        )
+    elif provider == "anthropic":
+        # Anthropic 使用 litellm 格式
+        return LLM(
+            model=f"anthropic/{model or 'claude-3-sonnet-20240229'}",
+            api_key=api_key,
+            temperature=0.7,
+            max_tokens=4000
+        )
     else:
-        # 默认使用OpenAI
-        return ChatOpenAI(
-            model="gpt-4o-mini",
+        # 默认使用 OpenAI
+        return LLM(
+            model="openai/gpt-4o-mini",
             api_key=api_key,
             temperature=0.7
         )
@@ -141,7 +141,7 @@ class PPTAgents:
             backstory='''你是一位资深的数据分析师，擅长从数据中发现趋势和规律。
             你能够快速理解数据的含义，识别关键指标，发现数据背后的故事。
             你熟悉各种图表类型（柱状图、折线图、饼图、散点图等），知道在什么场景下使用什么图表最有效。
-        你能够将复杂的数据分析结果转化为普通人都能理解的洞察。''',
+            你能够将复杂的数据分析结果转化为普通人都能理解的洞察。''',
             llm=self.llm,
             verbose=True,
             allow_delegation=False
@@ -156,10 +156,10 @@ class PPTAgents:
             role='PPT质量检查员',
             goal='检查PPT的完整性、一致性和专业性，确保交付质量',
             backstory='''你是一位严格的PPT质量检查员，对细节有着近乎苛刻的要求。
-        你检查每一页PPT的逻辑是否通顺，内容是否完整，风格是否统一。
-        你能够发现潜在的问题，如数据不一致、逻辑跳跃、格式错误等。
-        你以用户的视角审视PPT，确保最终交付的内容符合用户的期望。
-        你的检查清单包括：内容完整性、逻辑连贯性、视觉一致性、语言准确性。''',
+            你检查每一页PPT的逻辑是否通顺，内容是否完整，风格是否统一。
+            你能够发现潜在的问题，如数据不一致、逻辑跳跃、格式错误等。
+            你以用户的视角审视PPT，确保最终交付的内容符合用户的期望。
+            你的检查清单包括：内容完整性、逻辑连贯性、视觉一致性、语言准确性。''',
             llm=self.llm,
             verbose=True,
             allow_delegation=False
