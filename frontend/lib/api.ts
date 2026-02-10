@@ -20,7 +20,7 @@ function getToken(): string | null {
 }
 
 // 通用请求函数
-async function fetchAPI<T>(
+async function fetchAPI<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -64,7 +64,7 @@ async function fetchAPI<T>(
   
   // 204 No Content 响应没有响应体
   if (response.status === 204) {
-    return null;
+    return undefined as unknown as T;
   }
   
   return response.json();
@@ -180,11 +180,32 @@ export const generationAPI = {
     template_id?: string; 
     slides_count?: number;
     content_outline?: string[];
-  }) =>
-    fetchAPI<{ task_id: string; status: string; estimated_time: number; message: string }>('/ppt/generate', {
+    provider?: string;
+  }) => {
+    // 构建 prompt（合并标题和描述）
+    let prompt = data.title;
+    if (data.description && data.description.trim()) {
+      prompt += `\n\n${data.description.trim()}`;
+    }
+    if (data.content_outline && data.content_outline.length > 0) {
+      prompt += `\n\n内容大纲：\n${data.content_outline.map((item, i) => `${i + 1}. ${item}`).join('\n')}`;
+    }
+    
+    // 构建后端需要的请求体
+    const body = {
+      prompt,
+      template_id: data.template_id,
+      num_slides: data.slides_count || 10,
+      language: 'zh',
+      style: 'business',
+      provider: data.provider,
+    };
+    
+    return fetchAPI<{ task_id: string; status: string; estimated_time: number; message: string }>('/ppt/generate', {
       method: 'POST',
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify(body),
+    });
+  },
   
   // 查询生成状态
   getStatus: (task_id: string) =>
@@ -194,6 +215,19 @@ export const generationAPI = {
   cancel: (task_id: string) =>
     fetchAPI(`/ppt/generate/${task_id}/cancel`, {
       method: 'POST',
+    }),
+  
+  // 预览大纲
+  previewOutline: (data: {
+    prompt: string;
+    num_slides: number;
+    language: string;
+    style: string;
+    provider?: string;
+  }) =>
+    fetchAPI<{ success: boolean; outline: any; provider: string; message: string }>('/ppt/generate/preview-outline', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
 };
 
@@ -235,10 +269,26 @@ export const templateAPI = {
 };
 
 // ==================== API Key API ====================
+export interface APIKey {
+  id: string;
+  name: string;
+  provider: string;
+  is_active: boolean;
+  is_default: boolean;
+  created_at: string;
+  last_used_at?: string;
+}
+
 export const apiKeyAPI = {
   // 获取 API Key 列表
-  list: () =>
-    fetchAPI<Array<any>>('/api-keys'),
+  list: async (): Promise<APIKey[]> => {
+    const data = await fetchAPI<Array<any>>('/api-keys');
+    // 转换后端 status 字段为前端 is_active 布尔字段
+    return data.map((key: any) => ({
+      ...key,
+      is_active: key.status === 'active',
+    }));
+  },
   
   // 创建 API Key
   create: (data: { name: string; provider: string; api_key: string }) =>
@@ -248,18 +298,35 @@ export const apiKeyAPI = {
     }),
   
   // 获取 API Key 详情
-  getById: (key_id: string) =>
-    fetchAPI(`/api-keys/${key_id}`),
+  getById: async (key_id: string): Promise<APIKey> => {
+    const data = await fetchAPI<any>(`/api-keys/${key_id}`);
+    return {
+      ...data,
+      is_active: data.status === 'active',
+    };
+  },
   
   // 更新 API Key
-  update: (key_id: string, data: Partial<{ name: string; is_active: boolean; is_default: boolean }>) =>
-    fetchAPI(`/api-keys/${key_id}`, {
+  update: async (key_id: string, data: Partial<{ name: string; is_active: boolean; is_default: boolean }>): Promise<APIKey> => {
+    // 转换 is_active 为 status
+    const body: any = { ...data };
+    if (data.is_active !== undefined) {
+      body.status = data.is_active ? 'active' : 'invalid';
+      delete body.is_active;
+    }
+    const result = await fetchAPI<any>(`/api-keys/${key_id}`, {
       method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify(body),
+    });
+    // 转换后端返回的 status 为 is_active
+    return {
+      ...result,
+      is_active: result.status === 'active',
+    };
+  },
   
   // 删除 API Key
-  delete: (key_id: string) =>
+  delete: (key_id: string): Promise<void> =>
     fetchAPI(`/api-keys/${key_id}`, {
       method: 'DELETE',
     }),

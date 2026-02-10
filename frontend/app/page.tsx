@@ -182,9 +182,10 @@ export default function Home() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.15, duration: 0.6 }}
-                  className="glass-card rounded-3xl p-8 text-center group hover:bg-white/15 transition-all duration-300"
+                  className="glass-card rounded-3xl p-8 text-center group hover:bg-white/15"
+                  style={{ transition: 'background-color 0.2s ease' }}
                 >
-                  <div className="text-6xl font-display font-bold text-white/20 mb-4 group-hover:text-white/30 transition-colors">
+                  <div className="text-6xl font-display font-bold text-white/20 mb-4 group-hover:text-white/30">
                     {item.step}
                   </div>
                   <h3 className="text-xl font-semibold mb-3">{item.title}</h3>

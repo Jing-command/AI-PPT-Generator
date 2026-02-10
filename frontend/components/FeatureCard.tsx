@@ -20,12 +20,17 @@ export default function FeatureCard({ icon, title, subtitle, delay = 0 }: Featur
       transition={{ delay: 0.9 + delay, duration: 0.5 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="group glass-card rounded-2xl p-6 transition-all duration-300 hover:bg-white/15 hover:shadow-2xl hover:shadow-purple-900/20"
+      className="group glass-card rounded-2xl p-6 will-change-transform"
+      style={{ 
+        transform: 'translateZ(0)',
+        transition: 'background-color 0.2s ease'
+      }}
     >
       <motion.div
         animate={isHovered ? { rotate: [0, -10, 10, 0] } : { rotate: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-4"
+        transition={{ duration: 0.4 }}
+        className="mb-4 will-change-transform"
+        style={{ transform: 'translateZ(0)' }}
       >
         {icon}
       </motion.div>

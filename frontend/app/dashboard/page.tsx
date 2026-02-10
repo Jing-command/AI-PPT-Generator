@@ -226,7 +226,9 @@ export default function DashboardPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className="group glass-card rounded-2xl p-5 hover:bg-white/15 transition-all cursor-pointer"
+                    className="group glass-card rounded-2xl p-5 cursor-pointer will-change-transform"
+                    style={{ transform: 'translateZ(0)' }}
+                    whileHover={{ y: -4 }}
                   >
                     <Link href={`/editor/${ppt.id}`}>
                       {/* 缩略图 - 显示完整首页预览 */}

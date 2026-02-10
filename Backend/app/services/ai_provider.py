@@ -1,8 +1,10 @@
 """
-AI 提供商服务封装
-统一接口调用不同 AI 服务
+AI Provider Service Wrapper
+Unified interface for different AI services
 """
 
+import json
+import re
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator, Dict, List, Optional
 
@@ -12,8 +14,98 @@ from openai import AsyncOpenAI
 from app.config import settings
 
 
+def robust_json_parse(content: str) -> Dict:
+    """
+    Robust JSON parser
+    
+    Handles:
+    1. Extract ```json code blocks
+    2. Extract ``` code blocks  
+    3. Fix unterminated strings
+    4. Find first valid JSON object
+    """
+    # Try to extract code blocks
+    if "```json" in content:
+        match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+        if match:
+            content = match.group(1)
+    elif "```" in content:
+        match = re.search(r'```\s*(.*?)\s*```', content, re.DOTALL)
+        if match:
+            content = match.group(1)
+    
+    content = content.strip()
+    
+    # Try direct parse
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        pass
+    
+    # Try to find first JSON object
+    try:
+        match = re.search(r'\{.*\}', content, re.DOTALL)
+        if match:
+            return json.loads(match.group(0))
+    except json.JSONDecodeError:
+        pass
+    
+    # Try to fix truncated content
+    fixed_content = _fix_json_content(content)
+    try:
+        return json.loads(fixed_content)
+    except json.JSONDecodeError:
+        pass
+    
+    raise ValueError(f"Cannot parse JSON content: {content[:200]}...")
+
+
+def _fix_json_content(content: str) -> str:
+    """Fix common JSON format errors"""
+    # Remove comments
+    content = re.sub(r'//.*?\n', '\n', content)
+    content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+    
+    # Track quotes and brackets
+    in_string = False
+    escape = False
+    stack = []
+    
+    for i, char in enumerate(content):
+        if escape:
+            escape = False
+            continue
+        if char == '\\':
+            escape = True
+            continue
+        if char == '"' and not in_string:
+            in_string = True
+            stack.append('"')
+        elif char == '"' and in_string:
+            in_string = False
+            if stack and stack[-1] == '"':
+                stack.pop()
+    
+    # Fix unterminated string
+    if in_string:
+        content += '"'
+    
+    # Fix unclosed brackets
+    closing_map = {'{': '}', '[': ']', '(': ')', '"': '"'}
+    while stack:
+        opener = stack.pop()
+        if opener in closing_map:
+            content += closing_map[opener]
+    
+    # Remove trailing commas
+    content = re.sub(r',\s*}', '}', content)
+    content = re.sub(r',\s*]', ']', content)
+    
+    return content
+
+
 class AIProviderBase(ABC):
-    """AI 提供商基类"""
+    """AI Provider Base Class"""
     
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -23,9 +115,10 @@ class AIProviderBase(ABC):
         self,
         prompt: str,
         num_slides: int,
-        language: str = "zh"
+        language: str = "zh",
+        style: str = "business"
     ) -> Dict:
-        """生成 PPT 大纲"""
+        """Generate PPT outline with rich content"""
         pass
     
     @abstractmethod
@@ -36,7 +129,7 @@ class AIProviderBase(ABC):
         context: str,
         language: str = "zh"
     ) -> str:
-        """生成单页内容"""
+        """Generate detailed slide content"""
         pass
     
     @abstractmethod
@@ -44,63 +137,185 @@ class AIProviderBase(ABC):
         self,
         slide_content: str
     ) -> str:
-        """生成配图提示词"""
+        """Generate image prompt"""
         pass
 
 
-class OpenAIProvider(AIProviderBase):
-    """OpenAI 提供商"""
+class YunwuProvider(AIProviderBase):
+    """Yunwu AI (yunwu.ai) Provider - Supports various OpenAI-compatible models"""
     
     def __init__(self, api_key: str):
         super().__init__(api_key)
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.client = AsyncOpenAI(
+            api_key=api_key,
+            base_url="https://yunwu.ai/v1"
+        )
+        self.model = "gemini-3-flash-preview"
     
     async def generate_ppt_outline(
         self,
         prompt: str,
         num_slides: int,
-        language: str = "zh"
+        language: str = "zh",
+        style: str = "business"
     ) -> Dict:
-        """使用 GPT-4 生成大纲"""
+        """Generate detailed PPT outline with rich content"""
         
-        system_prompt = f"""你是一个专业的 PPT 设计师。请根据用户要求生成 PPT 大纲。
-要求：
-1. 生成 {num_slides} 页幻灯片的结构
-2. 包含标题页、内容页、结束页
-3. 每页包含标题和要点
-4. 使用 {language} 语言
+        style_descriptions = {
+            "business": "Professional business style, deep blue tones, clean and elegant",
+            "education": "Educational style, green tones, fresh and clear",
+            "creative": "Creative style, pink/purple tones, modern and lively",
+            "minimal": "Minimalist style, black/white/gray tones, simple and elegant",
+            "tech": "Tech style, cyan/blue tones, futuristic"
+        }
+        style_desc = style_descriptions.get(style, style_descriptions["business"])
+        
+        system_prompt = f"""You are a professional PPT content strategist. Generate content-rich, data-driven, well-structured presentations based on user topics.
 
-输出格式（JSON）：
+**Critical Requirements**:
+1. Generate {num_slides} slides
+2. Use {language} language
+3. Design style: {style_desc}
+4. **IMPORTANT**: Each page must have complete, valuable content with data/cases/analysis, not just simple titles
+
+**Content Quality Standards**:
+- Each page must have specific data, cases, analysis or insights
+- Avoid "outline-style" short titles, provide expanded explanations
+- Use realistic and credible data (placeholders like "about XX%", "over XXX million" are acceptable)
+- Include industry trends, market size, competitive analysis
+- Use structured expressions like comparison, causality, timeline appropriately
+
+**Available Layout Types** (auto-selected based on content):
+- "title": Cover - Main title + subtitle + speaker info
+- "section": Section divider - Chapter title + brief description  
+- "content": Content page - Detailed body with paragraph explanations
+- "two-column": Two-column comparison - Left/right comparative analysis
+- "timeline": Timeline - Development history, milestones
+- "process": Process flow - Step-by-step explanation
+- "grid": Grid - Features/capabilities showcase
+- "comparison": Comparison table - Multi-dimensional data comparison
+- "data": Data page - Big numbers + explanatory notes
+- "quote": Quote page - Core viewpoint + source
+- "image-text": Image-text mix - Case study display
+
+**Output Format (JSON)**:
 {{
-    "title": "PPT标题",
+    "title": "Attractive, specific main PPT title",
+    "summary": "Overall content summary, around 200 words",
+    "theme": {{
+        "name": "Theme name",
+        "primary_color": "Primary color, e.g., #1a365d",
+        "secondary_color": "Secondary color, e.g., #3182ce", 
+        "background_color": "Background color, e.g., #ffffff",
+        "text_color": "Text color, e.g., #1a202c",
+        "accent_color": "Accent color, e.g., #ed8936",
+        "font_family": "Font, e.g., Microsoft YaHei"
+    }},
     "slides": [
-        {{"type": "title", "title": "...", "subtitle": "..."}},
-        {{"type": "content", "title": "...", "points": ["...", "..."]}},
-        ...
+        {{
+            "type": "title",
+            "title": "Specific attractive main title",
+            "subtitle": "Subtitle explaining the core of the presentation"
+        }},
+        {{
+            "type": "content",
+            "title": "Specific chapter title",
+            "content": "Detailed paragraph content including data, analysis, insights - not just simple titles. At least 100 words of complete explanation.",
+            "bullets": [
+                "Point 1: Detailed explanation with data support",
+                "Point 2: Case analysis or comparison", 
+                "Point 3: Trend prediction or recommendations"
+            ],
+            "data": {{"key": "Key metric", "value": "Specific value"}}
+        }},
+        {{
+            "type": "two-column",
+            "title": "Comparison analysis title",
+            "left": {{
+                "title": "Option A name",
+                "points": [
+                    "Advantage 1: Specific explanation + data",
+                    "Advantage 2: Detailed analysis", 
+                    "Disadvantage: Objective evaluation"
+                ]
+            }},
+            "right": {{
+                "title": "Option B name",
+                "points": [
+                    "Advantage 1: Specific explanation + data",
+                    "Advantage 2: Detailed analysis",
+                    "Disadvantage: Objective evaluation"  
+                ]
+            }},
+            "conclusion": "Comparison summary with recommendations"
+        }},
+        {{
+            "type": "timeline",
+            "title": "Development history title",
+            "events": [
+                {{
+                    "year": "2019",
+                    "title": "Milestone event",
+                    "description": "What specifically happened, what was the significance, what were the metrics"
+                }},
+                {{
+                    "year": "2021", 
+                    "title": "Major breakthrough",
+                    "description": "Detailed explanation of breakthrough content and impact"
+                }}
+            ]
+        }},
+        {{
+            "type": "data",
+            "title": "Core data display",
+            "stats": [
+                {{
+                    "value": "85%",
+                    "label": "Market share",
+                    "description": "Leading position in XX field"
+                }},
+                {{
+                    "value": "250M",
+                    "label": "User scale", 
+                    "description": "Year-over-year growth XX%"
+                }}
+            ],
+            "insight": "Insights and analysis behind the data"
+        }},
+        {{
+            "type": "grid",
+            "title": "Core advantages/features",
+            "items": [
+                {{
+                    "title": "Advantage 1 name",
+                    "description": "Detailed explanation of what this advantage is, how it manifests, what value it brings"
+                }},
+                {{
+                    "title": "Advantage 2 name",
+                    "description": "Detailed explanation + data support"
+                }}
+            ]
+        }}
     ]
 }}"""
         
         response = await self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=self.model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7,
-            max_tokens=2000
+            max_tokens=8000
         )
         
-        # 解析 JSON 响应
-        import json
         content = response.choices[0].message.content
         
-        # 提取 JSON 部分
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0]
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0]
+        # Check if truncated
+        if response.choices[0].finish_reason == "length":
+            content = _fix_json_content(content)
         
-        return json.loads(content.strip())
+        return robust_json_parse(content)
     
     async def generate_slide_content(
         self,
@@ -109,40 +324,51 @@ class OpenAIProvider(AIProviderBase):
         context: str,
         language: str = "zh"
     ) -> str:
-        """生成单页详细内容"""
+        """Generate detailed slide content"""
         
-        prompt = f"""为幻灯片生成详细内容。
-标题：{title}
-类型：{slide_type}
-上下文：{context}
-语言：{language}
+        prompt = f"""Generate detailed slide content with data and analysis.
 
-请生成 3-5 个要点，每个要点简洁有力。"""
+Title: {title}
+Type: {slide_type}
+Context: {context}
+Language: {language}
+
+Requirements:
+1. Provide specific data, examples, or case studies
+2. Include analysis and insights, not just surface descriptions
+3. Use structured formatting (bullet points, numbered lists)
+4. Each point should have supporting details
+5. Total length: 150-300 words
+
+Output format: Rich text with markdown-style formatting."""
         
         response = await self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
-            max_tokens=500
+            max_tokens=2000
         )
         
         return response.choices[0].message.content
     
-    async def generate_image_prompt(self, slide_content: str) -> str:
-        """生成配图提示词"""
+    async def generate_image_prompt(
+        self,
+        slide_content: str
+    ) -> str:
+        """Generate image prompt"""
         
-        prompt = f"""根据以下内容生成一个配图提示词（用于 DALL-E）：
+        prompt = f"""Generate an image prompt based on the following content:
 {slide_content}
 
-要求：
-1. 简洁明了
-2. 专业商务风格
-3. 适合 PPT 使用
+Requirements:
+1. Concise and clear
+2. Professional business style
+3. Suitable for PPT use
 
-只输出提示词本身，不要其他文字。"""
+Output only the prompt itself, no other text."""
         
         response = await self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=200
@@ -151,38 +377,26 @@ class OpenAIProvider(AIProviderBase):
         return response.choices[0].message.content.strip()
     
     async def generate_image(self, prompt: str) -> str:
-        """生成图片，返回 URL"""
-        
-        response = await self.client.images.generate(
-            model="dall-e-3",
-            prompt=prompt,
-            size="1024x1024",
-            quality="standard",
-            n=1
-        )
-        
-        return response.data[0].url
+        """Not supported"""
+        return ""
 
 
 class AIProviderFactory:
-    """AI 提供商工厂"""
+    """AI Provider Factory"""
     
     _providers = {
-        "openai": OpenAIProvider,
-        # 可以添加更多提供商
-        # "anthropic": AnthropicProvider,
-        # "kimi": KimiProvider,
+        "yunwu": YunwuProvider,
     }
     
     @classmethod
     def create(cls, provider: str, api_key: str) -> AIProviderBase:
-        """创建提供商实例"""
+        """Create provider instance"""
         provider_class = cls._providers.get(provider)
         if not provider_class:
-            raise ValueError(f"不支持的提供商: {provider}")
+            raise ValueError(f"Unsupported provider: {provider}")
         return provider_class(api_key)
     
     @classmethod
     def get_supported_providers(cls) -> List[str]:
-        """获取支持的提供商列表"""
+        """Get supported providers list"""
         return list(cls._providers.keys())

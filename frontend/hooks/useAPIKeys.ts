@@ -1,17 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { apiKeyAPI } from '@/lib/api';
-
-interface APIKey {
-  id: string;
-  name: string;
-  provider: string;
-  is_active: boolean;
-  is_default: boolean;
-  created_at: string;
-  last_used_at?: string;
-}
+import { apiKeyAPI, type APIKey } from '@/lib/api';
 
 // API Key 管理 Hook
 export function useAPIKeys() {

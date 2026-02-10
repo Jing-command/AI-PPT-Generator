@@ -161,7 +161,7 @@ export default function ExportPage() {
                       key={option.id}
                       onClick={() => setSelectedFormat(option.id)}
                       disabled={isExporting}
-                      className={`p-4 rounded-xl border-2 transition-all text-left ${
+                      className={`p-4 rounded-xl border-2 text-left ${
                         selectedFormat === option.id
                           ? 'border-white bg-white/20'
                           : 'border-white/20 hover:border-white/40'
@@ -193,7 +193,7 @@ export default function ExportPage() {
                       key={quality.id}
                       onClick={() => setSelectedQuality(quality.id)}
                       disabled={isExporting}
-                      className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
+                      className={`w-full p-4 rounded-xl border-2 flex items-center justify-between ${
                         selectedQuality === quality.id
                           ? 'border-white bg-white/20'
                           : 'border-white/20 hover:border-white/40'

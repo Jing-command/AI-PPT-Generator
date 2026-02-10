@@ -84,15 +84,16 @@ class APIKeyEncryption:
             提供商名称 或 None
         """
         if api_key.startswith('sk-'):
-            # OpenAI 或兼容格式
-            if 'proj' in api_key or len(api_key) == 51:
+            # Moonshot: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+            if len(api_key) == 51 and api_key[3:].isalnum():
+                return 'moonshot'
+            # OpenAI: sk-proj-... 或 sk-... (51字符)
+            elif 'proj' in api_key:
                 return 'openai'
-            return 'openai'
+            else:
+                return 'openai'
         elif api_key.startswith('sk-ant-'):
             return 'anthropic'
-        elif api_key.startswith('sk-'):
-            # 可能是其他国内厂商
-            return 'kimi'
         elif api_key.startswith('AK-'):
             return 'aliyun'
         elif api_key.startswith('AKID'):

@@ -66,20 +66,81 @@ class APIKeyService:
     
     async def get_default_key(self, user_id: UUID, provider: str) -> Optional[UserAPIKey]:
         """
-        获取用户的默认 Key
+        获取用户的默认 Key，如果没有默认则返回该提供商的任意有效 Key
         
         Args:
             user_id: 用户 ID
             provider: 提供商
             
         Returns:
-            默认的 API Key
+            默认的 API Key 或任意有效 Key
         """
+        # 首先查找默认 Key
         result = await self.db.execute(
             select(UserAPIKey).where(
                 UserAPIKey.user_id == user_id,
                 UserAPIKey.provider == provider,
                 UserAPIKey.is_default == True,
+                UserAPIKey.status == "active"
+            )
+        )
+        key = result.scalar_one_or_none()
+        if key:
+            return key
+        
+        # 如果没有默认 Key，返回该提供商的任意有效 Key
+        result = await self.db.execute(
+            select(UserAPIKey).where(
+                UserAPIKey.user_id == user_id,
+                UserAPIKey.provider == provider,
+                UserAPIKey.status == "active"
+            )
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_any_active_key(self, user_id: UUID) -> Optional[UserAPIKey]:
+        """
+        获取用户的任意有效 API Key（优先默认，其次按优先级顺序）
+        
+        优先级：默认 Key > openai > moonshot > deepseek > anthropic > 其他
+        
+        Args:
+            user_id: 用户 ID
+            
+        Returns:
+            任意有效的 API Key
+        """
+        # 首先查找任意默认 Key
+        result = await self.db.execute(
+            select(UserAPIKey).where(
+                UserAPIKey.user_id == user_id,
+                UserAPIKey.is_default == True,
+                UserAPIKey.status == "active"
+            )
+        )
+        key = result.scalar_one_or_none()
+        if key:
+            return key
+        
+        # 按优先级查找
+        priority_order = ["openai", "moonshot", "deepseek", "anthropic", "aliyun", "tencent", "azure"]
+        
+        for provider in priority_order:
+            result = await self.db.execute(
+                select(UserAPIKey).where(
+                    UserAPIKey.user_id == user_id,
+                    UserAPIKey.provider == provider,
+                    UserAPIKey.status == "active"
+                )
+            )
+            key = result.scalar_one_or_none()
+            if key:
+                return key
+        
+        # 最后尝试任意 active key
+        result = await self.db.execute(
+            select(UserAPIKey).where(
+                UserAPIKey.user_id == user_id,
                 UserAPIKey.status == "active"
             )
         )

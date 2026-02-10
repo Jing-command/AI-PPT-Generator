@@ -18,7 +18,7 @@ class APIKeyBase(BaseModel):
     @classmethod
     def validate_provider(cls, v: str) -> str:
         """验证提供商是否支持"""
-        allowed = {'openai', 'anthropic', 'kimi', 'aliyun', 'tencent', 'azure'}
+        allowed = {'openai', 'moonshot', 'anthropic', 'gemini', 'qwen', 'ernie', 'deepseek', 'aliyun', 'tencent', 'azure', 'yunwu'}
         if v.lower() not in allowed:
             raise ValueError(f'不支持的提供商: {v}. 支持的: {allowed}')
         return v.lower()

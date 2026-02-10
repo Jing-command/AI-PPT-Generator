@@ -1,26 +1,67 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Wand2, Loader2, Sparkles, Check, ArrowRight, FileText } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Wand2, Loader2, Sparkles, Check, ArrowRight, FileText, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useGeneration } from "@/hooks/useGeneration";
 import { useTemplates } from "@/hooks/useTemplates";
 import { useAuthGuard } from "@/components/AuthGuard";
 import Navbar from "@/components/Navbar";
 import FloatingShapes from "@/components/FloatingShapes";
+import { OutlinePreview } from "@/components/OutlinePreview";
+import { generationAPI } from "@/lib/api";
 
 export default function GeneratePage() {
   const router = useRouter();
   const { isLoading: authLoading } = useAuthGuard(true);
   const { generate, cancel, task, isGenerating, error } = useGeneration();
-  const { templates, categories, isLoading: templatesLoading } = useTemplates();
+  const { templates, isLoading: templatesLoading } = useTemplates();
   
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [slideCount, setSlideCount] = useState(10);
+  
+  // Outline preview states
+  const [showPreview, setShowPreview] = useState(false);
+  const [outline, setOutline] = useState<any>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
+  // Generate outline preview
+  const handlePreviewOutline = async () => {
+    if (!title.trim()) return;
+    
+    setIsPreviewLoading(true);
+    setPreviewError(null);
+    setShowPreview(true);
+    
+    try {
+      const prompt = description 
+        ? `${title}\n\n${description}` 
+        : title;
+        
+      const response = await generationAPI.previewOutline({
+        prompt,
+        num_slides: slideCount,
+        language: "zh",
+        style: "business",
+      });
+      
+      if (response.success) {
+        setOutline(response.outline);
+      } else {
+        setPreviewError("Failed to generate outline");
+      }
+    } catch (err: any) {
+      setPreviewError(err.message || "Failed to generate outline");
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+  // Generate full PPT after preview
   const handleGenerate = async () => {
     if (!title.trim()) return;
     
@@ -31,12 +72,20 @@ export default function GeneratePage() {
         template_id: selectedTemplate || undefined,
         slides_count: slideCount,
       });
+      setShowPreview(false);
     } catch (err) {
-      console.error("生成失败:", err);
+      console.error("Generation failed:", err);
     }
   };
 
-  // 生成完成后跳转到编辑器
+  // Close preview and reset
+  const handleClosePreview = () => {
+    setShowPreview(false);
+    setOutline(null);
+    setPreviewError(null);
+  };
+
+  // Generation completed - redirect to editor
   if (task?.status === 'completed' && task.result?.ppt_id) {
     setTimeout(() => {
       router.push(`/editor/${task.result!.ppt_id}`);
@@ -45,7 +94,7 @@ export default function GeneratePage() {
 
   return (
     <main className="min-h-screen relative overflow-hidden">
-      {/* 背景 */}
+      {/* Background */}
       <div 
         className="fixed inset-0 animate-gradient"
         style={{
@@ -68,13 +117,13 @@ export default function GeneratePage() {
             >
               <div className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full mb-4">
                 <Wand2 className="w-4 h-4 text-yellow-300" />
-                <span className="text-sm">AI 智能生成</span>
+                <span className="text-sm">AI Smart Generation</span>
               </div>
               <h1 className="text-4xl font-bold text-gradient mb-3">
-                一句话生成 PPT
+                Generate PPT with One Sentence
               </h1>
               <p className="text-white/70">
-                描述你的想法，AI 帮你完成剩下的工作
+                Describe your idea, AI will do the rest
               </p>
             </motion.div>
 
@@ -84,33 +133,33 @@ export default function GeneratePage() {
               transition={{ delay: 0.1 }}
               className="glass rounded-3xl p-6 sm:p-8"
             >
-              {/* 标题输入 */}
+              {/* Title input */}
               <div className="mb-6">
-                <label className="block text-sm font-medium mb-2">PPT 主题 *</label>
+                <label className="block text-sm font-medium mb-2">PPT Topic *</label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="例如：2024年人工智能发展趋势报告"
+                  placeholder="E.g., 2024 AI Development Trends Report"
                   className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-white/40"
                 />
               </div>
 
-              {/* 描述输入 */}
+              {/* Description input */}
               <div className="mb-6">
-                <label className="block text-sm font-medium mb-2">详细描述（可选）</label>
+                <label className="block text-sm font-medium mb-2">Detailed Description (Optional)</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="补充说明：目标受众、关键要点、风格偏好..."
+                  placeholder="Additional details: target audience, key points, style preferences..."
                   rows={3}
                   className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-white/40 resize-none"
                 />
               </div>
 
-              {/* 页数选择 */}
+              {/* Slide count */}
               <div className="mb-6">
-                <label className="block text-sm font-medium mb-2">页数: {slideCount} 页</label>
+                <label className="block text-sm font-medium mb-2">Slides: {slideCount}</label>
                 <input
                   type="range"
                   min={5}
@@ -120,39 +169,39 @@ export default function GeneratePage() {
                   className="w-full accent-white"
                 />
                 <div className="flex justify-between text-xs text-white/50 mt-1">
-                  <span>5 页</span>
-                  <span>30 页</span>
+                  <span>5</span>
+                  <span>30</span>
                 </div>
               </div>
 
-              {/* 模板选择 */}
+              {/* Template selection */}
               <div className="mb-8">
-                <label className="block text-sm font-medium mb-3">选择模板</label>
+                <label className="block text-sm font-medium mb-3">Select Template</label>
                 
                 {templatesLoading ? (
                   <div className="flex items-center gap-2 text-white/50">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    加载中...
+                    Loading...
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                     <button
                       onClick={() => setSelectedTemplate(null)}
-                      className={`p-3 rounded-xl border-2 transition-all ${
+                      className={`p-3 rounded-xl border-2 ${
                         selectedTemplate === null 
                           ? 'border-white bg-white/20' 
                           : 'border-white/20 hover:border-white/40'
                       }`}
                     >
                       <Sparkles className="w-6 h-6 mx-auto mb-2" />
-                      <span className="text-xs">AI 推荐</span>
+                      <span className="text-xs">AI Recommended</span>
                     </button>
                     
                     {templates.slice(0, 7).map((template) => (
                       <button
                         key={template.id}
                         onClick={() => setSelectedTemplate(template.id)}
-                        className={`p-3 rounded-xl border-2 transition-all ${
+                        className={`p-3 rounded-xl border-2 ${
                           selectedTemplate === template.id 
                             ? 'border-white bg-white/20' 
                             : 'border-white/20 hover:border-white/40'
@@ -166,36 +215,64 @@ export default function GeneratePage() {
                 )}
               </div>
 
-              {/* 错误提示 */}
+              {/* Error message */}
               {error && (
                 <div className="mb-4 p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-200 text-sm">
                   {error}
                 </div>
               )}
 
-              {/* 生成按钮 */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleGenerate}
-                disabled={!title.trim() || isGenerating}
-                className="w-full flex items-center justify-center gap-2 bg-white text-purple-600 px-6 py-4 rounded-xl font-semibold text-lg shadow-lg disabled:opacity-50"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    生成中...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="w-5 h-5" />
-                    开始生成
-                  </>
-                )}
-              </motion.button>
+              {/* Action buttons */}
+              <div className="flex gap-3">
+                {/* Preview outline button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handlePreviewOutline}
+                  disabled={!title.trim() || isPreviewLoading}
+                  className="flex-1 flex items-center justify-center gap-2 glass px-6 py-4 rounded-xl font-semibold text-lg disabled:opacity-50"
+                >
+                  {isPreviewLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-5 h-5" />
+                      Preview Outline
+                    </>
+                  )}
+                </motion.button>
+
+                {/* Quick generate button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleGenerate}
+                  disabled={!title.trim() || isGenerating}
+                  className="flex-1 flex items-center justify-center gap-2 bg-white text-purple-600 px-6 py-4 rounded-xl font-semibold text-lg shadow-lg disabled:opacity-50"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-5 h-5" />
+                      Generate Now
+                    </>
+                  )}
+                </motion.button>
+              </div>
+
+              <p className="text-center text-sm text-white/50 mt-4">
+                "Preview Outline" lets you review structure first • "Generate Now" creates PPT immediately
+              </p>
             </motion.div>
 
-            {/* 生成状态 */}
+            {/* Generation status */}
             {task && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -219,10 +296,10 @@ export default function GeneratePage() {
                   
                   <div className="flex-1">
                     <h3 className="font-semibold">
-                      {task.status === 'completed' ? '生成完成！' :
-                       task.status === 'failed' ? '生成失败' :
-                       task.status === 'cancelled' ? '已取消' :
-                       '正在生成...'}
+                      {task.status === 'completed' ? 'Generation Complete!' :
+                       task.status === 'failed' ? 'Generation Failed' :
+                       task.status === 'cancelled' ? 'Cancelled' :
+                       'Generating...'}
                     </h3>
                     <p className="text-white/60 text-sm">{task.message}</p>
                     
@@ -243,7 +320,7 @@ export default function GeneratePage() {
                       onClick={cancel}
                       className="px-4 py-2 rounded-lg glass hover:bg-white/20 text-sm"
                     >
-                      取消
+                      Cancel
                     </button>
                   )}
                   
@@ -252,7 +329,7 @@ export default function GeneratePage() {
                       onClick={() => router.push(`/editor/${task.result!.ppt_id}`)}
                       className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white text-purple-600 text-sm font-medium"
                     >
-                      编辑
+                      Edit
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   )}
@@ -262,6 +339,20 @@ export default function GeneratePage() {
           </div>
         </div>
       </div>
+
+      {/* Outline Preview Modal */}
+      <AnimatePresence>
+        {showPreview && (
+          <OutlinePreview
+            outline={outline}
+            isLoading={isPreviewLoading}
+            error={previewError}
+            onClose={handleClosePreview}
+            onConfirm={handleGenerate}
+            onRegenerate={handlePreviewOutline}
+          />
+        )}
+      </AnimatePresence>
     </main>
   );
 }

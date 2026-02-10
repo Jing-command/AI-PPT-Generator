@@ -21,11 +21,13 @@ import { useAPIKeys } from "@/hooks/useAPIKeys";
 
 const PROVIDERS = [
   { id: "openai", name: "OpenAI", icon: "🤖" },
+  { id: "moonshot", name: "Moonshot (Kimi)", icon: "🌙" },
   { id: "anthropic", name: "Anthropic (Claude)", icon: "🧠" },
   { id: "gemini", name: "Google Gemini", icon: "✨" },
   { id: "qwen", name: "通义千问", icon: "🌟" },
   { id: "ernie", name: "文心一言", icon: "📚" },
   { id: "deepseek", name: "DeepSeek", icon: "🔮" },
+  { id: "yunwu", name: "云屋 AI (yunwu.ai)", icon: "☁️" },
 ];
 
 export default function APIKeySettings() {

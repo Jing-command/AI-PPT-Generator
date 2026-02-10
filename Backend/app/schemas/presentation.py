@@ -3,7 +3,7 @@ PPT 相关的 Pydantic 模型
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -12,14 +12,27 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 # ==================== Slide 模型 ====================
 
 class SlideContent(BaseModel):
-    """幻灯片内容"""
+    """幻灯片内容 - 支持任意额外字段以适应不同布局"""
     title: Optional[str] = None
     subtitle: Optional[str] = None
+    description: Optional[str] = None
     text: Optional[str] = None
     second_column: Optional[str] = None
     bullets: Optional[List[str]] = None
     image_url: Optional[str] = None
     chart_data: Optional[Dict[str, Any]] = None
+    
+    # Additional fields for various layouts
+    stats: Optional[List[Dict[str, Any]]] = None  # data layout
+    events: Optional[List[Dict[str, Any]]] = None  # timeline layout
+    steps: Optional[List[str]] = None  # process layout
+    items: Optional[List[Dict[str, Any]]] = None  # grid/comparison layout
+    left: Optional[Dict[str, Any]] = None  # two-column layout
+    right: Optional[Dict[str, Any]] = None  # two-column layout
+    quote: Optional[str] = None  # quote layout
+    author: Optional[str] = None  # quote layout
+    
+    model_config = ConfigDict(extra="allow")  # Allow any additional fields
 
 
 class SlideLayout(BaseModel):
@@ -41,10 +54,12 @@ class Slide(BaseModel):
     """幻灯片"""
     id: Optional[str] = None
     type: str = Field(default="content", description="幻灯片类型")
-    content: SlideContent
+    content: Union[SlideContent, Dict[str, Any]]  # Allow dict for flexibility
     layout: Optional[SlideLayout] = None
-    style: Optional[SlideStyle] = None
+    style: Optional[Dict[str, Any]] = None  # Allow dict for theme data
     notes: Optional[str] = None
+    
+    model_config = ConfigDict(extra="allow")
 
 
 # ==================== PPT 请求/响应 ====================
@@ -170,6 +185,19 @@ class GenerateStatusResponse(BaseModel):
     completed_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
+    
+    @model_validator(mode='before')
+    @classmethod
+    def map_id_to_task_id(cls, data: any) -> any:
+        """将数据库的 id 字段映射到 task_id"""
+        if hasattr(data, 'id') and not hasattr(data, 'task_id'):
+            if hasattr(data, '__dict__'):
+                data = dict(data.__dict__)
+            elif isinstance(data, dict):
+                data = dict(data)
+            if 'id' in data and 'task_id' not in data:
+                data['task_id'] = data.pop('id')
+        return data
 
 
 # ==================== 导出请求 ====================

@@ -47,11 +47,18 @@ class PPTGenerationService:
         """
         # 选择 API Key
         api_key_service = APIKeyService(self.db)
-        provider = request.provider or "openai"
         
-        key = await api_key_service.get_default_key(user_id, provider)
+        if request.provider:
+            # 如果指定了 provider，使用指定的
+            provider = request.provider
+            key = await api_key_service.get_default_key(user_id, provider)
+        else:
+            # 未指定 provider，自动查找任意可用 Key
+            key = await api_key_service.get_any_active_key(user_id)
+            provider = key.provider if key else "openai"
+        
         if not key:
-            raise ValueError(f"未找到有效的 {provider} API Key，请先添加")
+            raise ValueError("未找到有效的 API Key，请先添加")
         
         # 创建任务
         task = GenerationTask(

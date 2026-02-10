@@ -1,9 +1,9 @@
 """
-PPT 生成路由
-处理 PPT 生成任务
+PPT Generation Routes
+Handle PPT generation tasks
 """
 
-from typing import List
+from typing import List, Dict, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,9 +18,11 @@ from app.schemas.presentation import (
     GenerateStatusResponse,
 )
 from app.services.ppt_generation_service import get_ppt_generation_service
+from app.services.ai_provider import AIProviderFactory
+from app.services.api_key_service import APIKeyService
 from app.tasks.generation_tasks import process_generation_task
 
-router = APIRouter(prefix="/ppt/generate", tags=["PPT 生成"])
+router = APIRouter(prefix="/ppt/generate", tags=["PPT Generation"])
 
 
 @router.post(
@@ -116,3 +118,68 @@ async def cancel_generation_task(
         )
     
     return {"message": "任务已取消"}
+
+
+@router.post(
+    "/preview-outline",
+    response_model=Dict[str, Any],
+    summary="预览 PPT 大纲",
+    description="根据主题生成 PPT 大纲预览，用户可以确认后再提交完整生成任务"
+)
+async def preview_outline(
+    request: GenerateRequest,
+    current_user: User = Depends(get_current_user),
+    db = Depends(get_db)
+):
+    """
+    Preview PPT outline before full generation
+    
+    Returns outline structure with rich content for user review
+    """
+    # Get API Key
+    api_key_service = APIKeyService(db)
+    
+    if request.provider:
+        provider_name = request.provider
+        key = await api_key_service.get_default_key(current_user.id, provider_name)
+    else:
+        key = await api_key_service.get_any_active_key(current_user.id)
+        provider_name = key.provider if key else "openai"
+    
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "NO_API_KEY",
+                "message": "No valid API Key found"
+            }
+        )
+    
+    try:
+        # Create provider and generate outline
+        from app.services.encryption_service import api_key_encryption
+        api_key = api_key_encryption.decrypt(key.api_key_encrypted)
+        provider = AIProviderFactory.create(provider_name, api_key)
+        
+        outline = await provider.generate_ppt_outline(
+            prompt=request.prompt,
+            num_slides=request.num_slides,
+            language=request.language,
+            style=request.style
+        )
+        
+        return {
+            "success": True,
+            "outline": outline,
+            "provider": provider_name,
+            "message": "Outline generated successfully. Review and submit to generate full PPT."
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "GENERATION_FAILED",
+                "message": f"Failed to generate outline: {str(e)}"
+            }
+        )
