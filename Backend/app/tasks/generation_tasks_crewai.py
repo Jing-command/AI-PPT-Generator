@@ -86,16 +86,26 @@ async def _process_with_crewai(task_self, task_id: str):
         
         async with AsyncSessionLocal() as async_db:
             api_key_service = APIKeyService(async_db)
-            key = await api_key_service.get_default_key(task.user_id, task.provider)
+            
+            # 首先尝试获取 Moonshot (Kimi) 的 Key
+            key = await api_key_service.get_default_key(task.user_id, "moonshot")
+            
+            # 如果没有 Moonshot Key，再尝试任务指定的 provider
+            if not key:
+                key = await api_key_service.get_default_key(task.user_id, task.provider)
+            
+            # 如果还是没有，尝试获取任意可用 Key
+            if not key:
+                key = await api_key_service.get_any_active_key(task.user_id)
             
             if not key:
                 with SyncSessionLocal() as db2:
                     t = db2.query(GenerationTask).filter(GenerationTask.id == task_id).first()
                     if t:
                         t.status = "failed"
-                        t.error_message = f"未找到有效的 {task.provider} API Key"
+                        t.error_message = "未找到有效的 API Key，请先添加 Moonshot (Kimi) 或其他提供商的 Key"
                         db2.commit()
-                raise ValueError(f"No valid {task.provider} API Key found")
+                raise ValueError("No valid API Key found")
             
             # 解密API Key
             api_key = api_key_encryption.decrypt(key.api_key_encrypted)
@@ -120,10 +130,13 @@ async def _process_with_crewai(task_self, task_id: str):
                 # Step 2: 创建Crew并生成PPT
                 print(f"[CrewAI] Starting generation for task {task_id}")
                 
+                # 确定 provider，优先使用 moonshot
+                provider = key.provider if key.provider else "moonshot"
+                
                 crew = create_ppt_crew(
-                    provider=task.provider,
+                    provider=provider,
                     api_key=api_key,
-                    model=key.model if key.model else None
+                    model=key.model if key.model else "kimi-k2-5"
                 )
                 
                 result = await crew.generate_ppt(

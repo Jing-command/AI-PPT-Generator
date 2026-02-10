@@ -15,7 +15,7 @@ def get_llm(provider: str = "openai", model: str = None, api_key: str = None):
     获取LLM实例
     
     Args:
-        provider: 提供商 (openai/anthropic)
+        provider: 提供商 (openai/anthropic/moonshot)
         model: 模型名称
         api_key: API密钥
     
@@ -33,6 +33,15 @@ def get_llm(provider: str = "openai", model: str = None, api_key: str = None):
         return ChatAnthropic(
             model=model or "claude-3-sonnet-20240229",
             anthropic_api_key=api_key,
+            temperature=0.7,
+            max_tokens=4000
+        )
+    elif provider == "moonshot":
+        # Kimi (Moonshot) API - 兼容OpenAI格式
+        return ChatOpenAI(
+            model=model or "kimi-k2-5",
+            api_key=api_key,
+            base_url="https://api.moonshot.cn/v1",
             temperature=0.7,
             max_tokens=4000
         )
